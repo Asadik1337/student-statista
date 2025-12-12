@@ -1,357 +1,278 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
+<meta charset="UTF-8">
 <title>Student Statista</title>
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- Uploadcare direct upload settings -->
-<script>
-  window.UPLOADCARE_PUBLIC_KEY = "452dd8e20a2e77457998";
-  window.UPLOADCARE_LOCALE = "en";
-  window.UPLOADCARE_AUTOSTORE = true;
-</script>
-<script src="https://ucarecdn.com/libs/widget/3.x/uploadcare.full.min.js"></script>
-
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <style>
-  :root{--brand:#0b7dda;--muted:#777}
-  body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:#f5f7fa;color:#111}
-  .header{background:var(--brand);color:#fff;padding:14px 16px;text-align:center;font-weight:700;font-size:20px}
-  #app{padding:14px;max-width:980px;margin:0 auto}
-  .card{background:#fff;border-radius:10px;padding:14px;margin-bottom:12px;box-shadow:0 4px 14px rgba(12,30,45,0.06)}
-  button{background:var(--brand);color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
-  button.secondary{background:#6c757d}
-  button.danger{background:#d32f2f}
-  .back{background:#666;margin-bottom:12px}
-  .group-btn,.student-btn{display:block;width:100%;text-align:left;padding:12px;border-radius:8px;border:1px solid #e6e9ee;background:#fff;margin:8px 0;cursor:pointer}
-  .task-row{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:8px;border:1px solid #e6e9ee;background:#fff;margin:8px 0}
-  .task-row.green{background:#e6f9ec}
-  .task-row.red{background:#fff0f0}
-  .small{color:var(--muted);font-size:13px}
-  input[type="text"], input[type="password"], select { width:100%; padding:10px;border-radius:8px;border:1px solid #dcdfe6;margin-bottom:8px }
-  @media(max-width:600px){ .header{font-size:18px} }
+body{margin:0;font-family:Arial;background:#f4f6fb}
+header{background:#1e88e5;color:#fff;padding:15px;text-align:center;font-size:20px}
+.container{max-width:1100px;margin:20px auto;padding:10px}
+.card{background:#fff;border-radius:8px;padding:15px;margin-bottom:10px}
+button{padding:8px 14px;border:none;border-radius:6px;cursor:pointer}
+.primary{background:#1e88e5;color:#fff}
+.back{background:#555;color:#fff;margin-bottom:10px}
+.red{color:#c62828;font-weight:bold}
+.green{color:#2e7d32;font-weight:bold}
+.task{display:flex;justify-content:space-between;align-items:center}
+img{max-width:120px;border-radius:6px;margin-top:6px}
+input[type=file]{display:none}
+input[type=date]{padding:6px}
+hr{border:none;border-top:1px solid #ddd;margin:10px 0}
 </style>
 </head>
+
 <body>
-  <div class="header">Student Statista</div>
-  <div id="app"></div>
+<header>Student Statista</header>
+<div class="container" id="app"></div>
 
 <script>
-/* -----------------------------
-   Firebase init (project-specific)
-   ----------------------------- */
-const firebaseConfig = {
+/* ================= FIREBASE ================= */
+firebase.initializeApp({
   apiKey: "AIzaSyDJDVZazGiEUshVicJX8ObvxIjDPgA5rTo",
   authDomain: "studentstatista.firebaseapp.com",
-  databaseURL: "https://studentstatista-default-rtdb.firebaseio.com/",
-  projectId: "studentstatista",
-  storageBucket: "studentstatista.firebasestorage.app",
-  messagingSenderId: "584243573578",
-  appId: "1:584243573578:web:59541448a4a8afedf7c7b3"
-};
-firebase.initializeApp(firebaseConfig);
+  databaseURL: "https://studentstatista-default-rtdb.firebaseio.com",
+  projectId: "studentstatista"
+});
 const db = firebase.database();
 
-/* -----------------------------
-   Safe key helper: normalizes names for DB paths
-   ----------------------------- */
-function safeKey(s){
-  if(!s && s !== 0) return '';
-  return String(s).trim()
-    .replace(/[.#$[\]]/g, "_")
-    .replace(/\s+/g, "_");
-}
+/* ================= CONFIG ================= */
+const IMGBB_KEY = "be4e74e3246530deeb9dd1d7cfb31a3d";
 
-/* -----------------------------
-   Groups, students & tasks
-   ----------------------------- */
-const groups = {
-  "GROUP IELTS M/W/F 9:00":[
-    "HOSHIMOVA NILUFAR","JURAYEVA AZIZA","MAHMUDOV SUNNAT","MUHIDDINOVA MAHBUBA","NORBOYEV SHOHJAXON","OCHILOV LOCHINBEK","ORALOVA SHOHINUR","RAVSHANOVA ZAYNAB","TOSHPULATOV ABBOS"
-  ],
-  "GROUP IELTS 17:00 MWF":[
-    "ABDURAHIMOVA ZILOLA","ALIMOV BEHRUZ","ANVAROVA RUXSHONA","ASADOV SARDOR","BAXRONOVA FAYRUZA","GAFURJONOV ULUGBEK","ISMOILOV ISMOIL","JULIBOYEVA ZEBO","KOZIMJONOVA DURDONA","QIZIMELIKUZIYEVA RUXSHONA","NIGMATOV ABDURAHIM","RAHMATULLAYEV BEXRUZ","TALABOV SAUD","XISLATULLAYEV JAVOXIR","XODJAYEVA LAZIZA","YORMATOV MIRABROR"
-  ],
-  "GROUP IELTS T/T/S 9:00":[ "SAIDUSMONOVA MADINA","SOBIROVA MARJONA","TILLAYEV OYBEK","TOSHTEMIROVA MUBORAK","UMAROVA MOXIGUL" ],
-  "GROUP IELTS 10:30 TTS":[ "ADXAMOVA MUBINA","BAXTIYOROVA NILUFAR","ISAMATOVA LAYLO","NASIROVA LAZIZA","QILICHOVA GULISTON" ],
-  "GROUP IELTS T/T/S 14:00":[ "ABDUAZIZOVA HABIBA","ABDUJABBOROVA LOLA","ABDUVALIYEVA OMINA","ALISHEROV NURMUHAMMAD","DJURAYEVA NURGUL","ISLOMBEKOVA EZOZA","ISMAILOVA EZOZA","JORABEKOV AFZALBEK","MAHMUDJONOV FAYZULLOH","MIRAHMEDOVA MUSLIMA","OLIMJONOVA DILNURA","TOJIBOYEV MUXAMMAD","UROLOV SIROJ","XUDOYBERDIYEV QOSIMBEK" ],
-  "GROUP IELTS 15:30 TTS":[ "ABUBAKIROVA RAHIMA","IMANKULOVA CHAROS","ISLOMXOJAYEV YUNUS","KAYUMKHAJAYEVA JASMINA","MAVLONBEKOV NURMUHAMMAD","MIRAXMEDOVA ROBIYA","MIRSAIDOVA MALIKA","MIRSODIQOV MIRABROR","QODIROV ABDUVALI","QOSIMOVA NARGIZA","RAVSHANOVA MUSLIMA","SHARAXMEDOVA KAMILA","SHERALIYEV ELSHOD","TOGAYEVA SHAXINA","UMARXONOVA JAVOHIRPOSHSHA","YOLDASHEVA FARZONA","ZOIRXOJAYEVA ROBIYA" ]
-};
-
-const tasks = [
-  "Dictation","Reading Test Bank","Podcast","Writing task 1","Writing task 2",
-  "Speaking Part 1","Speaking Part 2","Speaking Part 3","Listening Strategies",
-  "Listening Practice","Reading Practice","Listening Made easy",
-  "Cambridge Listening","Cambridge Reading","Cambridge Writing",
-  "TED Podcasts","Vocab for IELTS Book"
+const TASKS=[
+"Dictation","Reading Test Bank","Podcast","Writing task 1","Writing task 2",
+"Speaking Part 1","Speaking Part 2","Speaking Part 3",
+"Listening Strategies","Listening Practice","Reading Practice",
+"Listening Made easy","Cambridge Listening","Cambridge Reading",
+"Cambridge Writing","TED Podcasts","Vocab for ielts book"
 ];
 
-/* -----------------------------
-   App state
-   ----------------------------- */
-let currentRole = null; // 'teacher'|'assistant'|'student'
-let currentGroup = null;
-let currentStudent = null;
+const GROUPS = {
 
-/* -----------------------------
-   App root
-   ----------------------------- */
-const app = document.getElementById('app');
+  "GROUP IELTS M/W/F 9:00": [
+    "HOSHIMOVA NILUFAR",
+    "JURAYEVA AZIZA",
+    "MAHMUDOV SUNNAT",
+    "MUHIDDINOVA MAHBUBA",
+    "NORBOYEV SHOHJAXON",
+    "OCHILOV LOCHINBEK",
+    "ORALOVA SHOHINUR",
+    "RAVSHANOVA ZAYNAB",
+    "TOSHPULATOV ABBOS"
+  ],
 
-/* -----------------------------
-   Render: Login (with "Login as Student")
-   ----------------------------- */
-function renderLogin(){
-  currentRole = null; currentGroup = null; currentStudent = null;
-  app.innerHTML = '';
-  const c = document.createElement('div'); c.className='card';
-  c.innerHTML = `
-    <h2 style="margin:0 0 10px 0">Login</h2>
-    <input id="loginUser" placeholder="Username" />
-    <input id="loginPass" placeholder="Password" type="password" />
-    <div style="display:flex;gap:8px;margin-top:10px">
-      <button id="btnLogin" style="flex:1">Login</button>
-      <button id="btnStudent" class="secondary" style="flex:1">Login as Student</button>
-    </div>
-    <div class="small" style="margin-top:12px">Teachers: use your credentials. Students: click <strong>Login as Student</strong>.</div>
-  `;
-  app.appendChild(c);
+  "GROUP IELTS 17:00 MWF": [
+    "ABDURAHIMOVA ZILOLA",
+    "ALIMOV BEHRUZ",
+    "ANVAROVA RUXSHONA",
+    "ASADOV SARDOR",
+    "BAXRONOVA FAYRUZA",
+    "GAFURJONOV ULUGBEK",
+    "ISMOILOV ISMOIL",
+    "JULIBOYEVA ZEBO",
+    "KOZIMJONOVA DURDONA",
+    "QIZIMELIKUZIYEVA RUXSHONA",
+    "NIGMATOV ABDURAHIM",
+    "RAHMATULLAYEV BEXRUZ",
+    "TALABOV SAUD",
+    "XISLATULLAYEV JAVOXIR",
+    "XODJAYEVA LAZIZA",
+    "YORMATOV MIRABROR"
+  ],
 
-  document.getElementById('btnLogin').onclick = () => {
-    const u = document.getElementById('loginUser').value.trim();
-    const p = document.getElementById('loginPass').value.trim();
-    if(u === 'Teacher1' && p === 'Admin1'){ currentRole='teacher'; renderAdmin(); return; }
-    if(u === 'Assistant1' && p === 'Admin2'){ currentRole='assistant'; renderAdmin(); return; }
-    alert('Invalid credentials');
-  };
+  "GROUP IELTS T/T/S 9:00": [
+    "SAIDUSMONOVA MADINA",
+    "SOBIROVA MARJONA",
+    "TILLAYEV OYBEK",
+    "TOSHTEMIROVA MUBORAK",
+    "UMAROVA MOXIGUL"
+  ],
 
-  document.getElementById('btnStudent').onclick = () => {
-    currentRole = 'student';
-    renderGroups();
-  };
+  "GROUP IELTS 10:30 TTS": [
+    "ADXAMOVA MUBINA",
+    "BAXTIYOROVA NILUFAR",
+    "ISAMATOVA LAYLO",
+    "NOSIROVA LAZIZA",
+    "QILICHOVA GULISTON"
+  ],
+
+  "GROUP IELTS T/T/S 14:00": [
+    "ABDUAZIZOVA HABIBA",
+    "ABDUJABBOROVA LOLA",
+    "ABDUVALIYEVA OMINA",
+    "ALISHEROV NURMUHAMMAD",
+    "DJURAYEVA NURGUL",
+    "ISLOMBEKOVA EZOZA",
+    "ISMAILOVA EZOZA",
+    "JORABEKOV AFZALBEK",
+    "MAHMUDJONOV FAYZULLOH",
+    "MIRAHMEDOVA MUSLIMA",
+    "OLIMJONOVA DILNURA",
+    "TOJIBOYEV MUXAMMAD",
+    "UROLOV SIROJ",
+    "XUDOYBERDIYEV QOSIMBEK"
+  ],
+
+  "GROUP IELTS 15:30 TTS": [
+    "ABUBAKIROVA RAHIMA",
+    "IMANKULOVA CHAROS",
+    "ISLOMXOJAYEV YUNUS",
+    "KAYUMKHAJAYEVA JASMINA",
+    "MAVLONBEKOV NURMUHAMMAD",
+    "MIRAXMEDOVA ROBIYA",
+    "MIRSAIDOVA MALIKA",
+    "MIRSODIQOV MIRABROR",
+    "QODIROV ABDUVALI",
+    "QOSIMOVA NARGIZA",
+    "RAVSHANOVA MUSLIMA",
+    "SHARAXMEDOVA KAMILA",
+    "SHERALIYEV ELSHOD",
+    "TOGAYEVA SHAXINA",
+    "UMARXONOVA JAVOHIRPOSHSHA",
+    "YOLDASHEVA FARZONA",
+    "ZOIRXOJAYEVA ROBIYA"
+  ]
+
+};
+
+const app=document.getElementById("app");
+
+/* ================= HOME ================= */
+function home(){
+app.innerHTML=`
+<div class="card"><button class="primary" onclick="student()">Enter as Student</button></div>
+<div class="card"><button class="primary" onclick="admin()">Teacher / Assistant</button></div>
+`;
 }
 
-/* -----------------------------
-   Student flow: choose group -> student -> tasks
-   ----------------------------- */
-function renderGroups(){
-  app.innerHTML = '<h3>Select your group</h3>';
-  for(const g of Object.keys(groups)){
-    const btn = document.createElement('button');
-    btn.className = 'group-btn';
-    btn.textContent = g;
-    btn.onclick = () => selectGroup(g);
-    app.appendChild(btn);
-  }
+/* ================= STUDENT ================= */
+function student(){
+let h=`<button class="back" onclick="home()">Back</button><h3>Select group</h3>`;
+Object.keys(GROUPS).forEach(g=>{
+h+=`<div class="card"><button class="primary" onclick="students('${g}')">${g}</button></div>`;
+});
+app.innerHTML=h;
 }
 
-function selectGroup(g){
-  currentGroup = g;
-  app.innerHTML = `<button class="back" onclick="renderGroups()">Back</button><h3>${g}</h3>`;
-  for(const s of groups[g]){
-    const b = document.createElement('button');
-    b.className = 'student-btn';
-    b.textContent = s;
-    b.onclick = () => { currentStudent = s; renderStudentTasks(); };
-    app.appendChild(b);
-  }
+function students(group){
+let h=`<button class="back" onclick="student()">Back</button><h3>${group}</h3>`;
+GROUPS[group].forEach(s=>{
+h+=`<div class="card"><button class="primary" onclick="tasks('${group}','${s}')">${s}</button></div>`;
+});
+app.innerHTML=h;
 }
 
-/* -----------------------------
-   Render student tasks (reads from safe DB path)
-   ----------------------------- */
-async function renderStudentTasks(){
-  app.innerHTML = `<button class="back" onclick="selectGroup('${currentGroup}')">Back</button><h3>${currentStudent}</h3><h4>Your tasks</h4>`;
-  const gk = safeKey(currentGroup), sk = safeKey(currentStudent);
-  let submitted = {};
-  try{
-    const snap = await db.ref(`submissions/${gk}/${sk}`).get();
-    submitted = snap.exists() ? snap.val() : {};
-  }catch(e){
-    submitted = {};
-  }
-
-  for(const t of tasks){
-    const tk = String(t).trim();
-    const rec = submitted[tk];
-    const row = document.createElement('div');
-    row.className = 'task-row ' + (rec ? 'green' : 'red');
-    row.innerHTML = `
-      <div><strong>${t}</strong><div class="small">${rec ? 'Submitted' : 'Not submitted'}</div></div>
-      <div style="display:flex;gap:8px;align-items:center">
-        ${rec ? `<button onclick="window.open('${rec.url}','_blank')">View</button>` : ''}
-        <button onclick="uploadTask('${tk}')">${rec ? 'Resubmit' : 'Submit'}</button>
-      </div>
-    `;
-    app.appendChild(row);
-  }
+function tasks(group,student){
+app.innerHTML=`<button class="back" onclick="students('${group}')">Back</button><h3>${student}</h3><div id="tasks"></div>`;
+TASKS.forEach(t=>{
+db.ref(`submissions/${group}/${student}/${t}`).once("value",snap=>{
+let d=snap.val();
+document.getElementById("tasks").innerHTML+=`
+<div class="card task">
+<div>
+<b>${t}</b><br>
+<span class="${d?'green':'red'}">${d?'Submitted':'Not submitted'}</span>
+${d?`<img src="${d.url}">`:''}
+</div>
+<label class="primary">
+Submit<input type="file" accept="image/*"
+onchange="upload(this,'${group}','${student}','${t}')">
+</label>
+</div>`;
+});
+});
 }
 
-/* -----------------------------
-   Upload task using Uploadcare (Direct) + safe DB write
-   ----------------------------- */
-async function uploadTask(taskName){
-  try{
-    if(!currentGroup || !currentStudent){ alert('Choose group and name first'); return; }
-
-    // open Uploadcare dialog (direct, no preset required)
-    const widget = uploadcare.openDialog(null, {publicKey: UPLOADCARE_PUBLIC_KEY});
-    // wait for selection and upload
-    const file = await new Promise((resolve, reject) => {
-      widget.done(f => resolve(f));
-      widget.fail(err => reject(err));
-    });
-
-    // show simple uploading notice
-    const notice = document.createElement('div'); notice.className='card'; notice.innerText='Uploading...';
-    app.appendChild(notice);
-
-    const info = await file.promise(); // cloud info when uploaded
-
-    const gk = safeKey(currentGroup), sk = safeKey(currentStudent), tk = String(taskName).trim();
-    const payload = { url: info.cdnUrl || info.originalUrl || '', time: Date.now() };
-
-    // write to normalized path
-    await db.ref(`submissions/${gk}/${sk}/${tk}`).set(payload);
-
-    // cleanup and refresh
-    try{ notice.remove(); }catch(e){}
-    await renderStudentTasks();
-    alert('File uploaded and task marked as submitted.');
-  }catch(err){
-    console.error('uploadTask error', err);
-    alert('Upload failed — please try again.');
-  }
+function upload(inp,g,s,t){
+let fd=new FormData();
+fd.append("image",inp.files[0]);
+fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`,{method:"POST",body:fd})
+.then(r=>r.json())
+.then(res=>{
+db.ref(`submissions/${g}/${s}/${t}`).set({url:res.data.url,time:Date.now()})
+.then(()=>tasks(g,s));
+});
 }
 
-/* -----------------------------
-   Admin / Assistant flow
-   ----------------------------- */
-function renderAdmin(){
-  app.innerHTML = `<button class="back" onclick="renderLogin()">Logout</button><h3>Admin Panel (${currentRole})</h3><h4>Select group</h4>`;
-  for(const g of Object.keys(groups)){
-    const b = document.createElement('button');
-    b.className = 'group-btn';
-    b.textContent = g;
-    b.onclick = () => openGroupAdmin(g);
-    app.appendChild(b);
-  }
+/* ================= ADMIN ================= */
+function admin(){
+let l=prompt("Login:");
+let p=prompt("Password:");
+if(!((l==="Teacher1"&&p==="Admin1")||(l==="Assistant1"&&p==="Admin2"))){
+alert("Wrong credentials");return;
 }
 
-async function openGroupAdmin(g){
-  currentGroup = g;
-  app.innerHTML = `<button class="back" onclick="renderAdmin()">Back</button><h3>${g}</h3>`;
-  const gk = safeKey(g);
-  let data = {};
-  try{ const snap = await db.ref(`submissions/${gk}`).get(); data = snap.exists() ? snap.val() : {}; }catch(e){ data = {}; }
+let h=`<button class="back" onclick="home()">Back</button>
+<h3>Admin Panel</h3>
 
-  for(const s of groups[g]){
-    const stData = data[safeKey(s)] || {};
-    const count = Object.keys(stData).length;
-    const row = document.createElement('div');
-    row.className = 'task-row';
-    row.innerHTML = `
-      <div><strong>${s}</strong><div class="small">${count} submitted</div></div>
-      <div style="display:flex;gap:8px">
-        <button onclick="viewStudent('${s.replace(/'/g,"\\'")}')">Open</button>
-        <button class="secondary" onclick="downloadStudentCSV('${g.replace(/'/g,"\\'")}','${s.replace(/'/g,"\\'")}')">Export</button>
-      </div>
-    `;
-    app.appendChild(row);
-  }
+<label>From <input type="date" id="from"></label>
+<label>To <input type="date" id="to"></label>
+<button class="primary" onclick="loadAdmin()">Apply</button>
+<hr>`;
 
-  // group controls
-  const controls = document.createElement('div'); controls.style.marginTop='12px';
-  controls.innerHTML = `
-    <button class="secondary" onclick="downloadGroupCSV('${g.replace(/'/g,"\\'")}')">Export Group CSV</button>
-    ${currentRole === 'teacher' ? `<button class="danger" style="margin-left:10px" onclick="clearGroup('${g.replace(/'/g,"\\'")}')">Clear Group</button>` : ''}
-  `;
-  app.appendChild(controls);
+Object.keys(GROUPS).forEach(g=>{
+h+=`
+<div class="card">
+<b>${g}</b><br>
+<button onclick="exportCSV('${g}')">Export CSV</button>
+<button onclick="clearGroup('${g}')">Clear Group</button>
+</div>`;
+});
+app.innerHTML=h;
+loadAdmin();
 }
 
-async function viewStudent(s){
-  currentStudent = s;
-  app.innerHTML = `<button class="back" onclick="openGroupAdmin('${currentGroup.replace(/'/g,"\\'")}')">Back</button><h3>${s}</h3>`;
-  const gk = safeKey(currentGroup), sk = safeKey(s);
-  let data = {};
-  try{ const snap = await db.ref(`submissions/${gk}/${sk}`).get(); data = snap.exists() ? snap.val() : {}; }catch(e){ data = {}; }
-
-  for(const t of tasks){
-    const rec = data[t];
-    const row = document.createElement('div');
-    row.className = 'task-row ' + (rec ? 'green' : 'red');
-    row.innerHTML = `
-      <span>${t}</span>
-      <div style="display:flex;gap:8px">
-        ${rec ? `<button onclick="window.open('${rec.url}','_blank')">View</button>` : ''}
-        ${currentRole === 'teacher' ? `<button class="danger" onclick="clearTask('${t.replace(/'/g,"\\'")}')">Delete</button>` : ''}
-      </div>
-    `;
-    app.appendChild(row);
-  }
+function loadAdmin(){
+let from=document.getElementById("from").valueAsNumber||0;
+let to=document.getElementById("to").valueAsNumber||Date.now();
+db.ref("submissions").once("value",snap=>{
+let data=snap.val()||{};
+Object.keys(data).forEach(g=>{
+let block=document.createElement("div");
+block.className="card";
+block.innerHTML=`<h4>${g}</h4>`;
+Object.keys(data[g]).forEach(s=>{
+Object.keys(data[g][s]).forEach(t=>{
+let r=data[g][s][t];
+if(r.time>=from&&r.time<=to){
+block.innerHTML+=`${s} — ${t} — <a href="${r.url}" target="_blank">view</a><br>`;
+}
+});
+});
+app.appendChild(block);
+});
+});
 }
 
-/* -----------------------------
-   Admin actions: clear / exports
-   ----------------------------- */
-async function clearTask(t){
-  if(!confirm('Delete this submission?')) return;
-  const gk = safeKey(currentGroup), sk = safeKey(currentStudent);
-  await db.ref(`submissions/${gk}/${sk}/${safeKey(t)}`).remove();
-  viewStudent(currentStudent);
+function exportCSV(group){
+db.ref(`submissions/${group}`).once("value",snap=>{
+let rows=["Student,Task,URL,Date"];
+let d=snap.val()||{};
+Object.keys(d).forEach(s=>{
+Object.keys(d[s]).forEach(t=>{
+let r=d[s][t];
+rows.push(`${s},${t},${r.url},${new Date(r.time).toLocaleString()}`);
+});
+});
+let blob=new Blob([rows.join("\n")],{type:"text/csv"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download=group+".csv";
+a.click();
+});
 }
 
-async function clearGroup(g){
-  if(!confirm('Clear all submissions for this group?')) return;
-  const gk = safeKey(g);
-  await db.ref(`submissions/${gk}`).remove();
-  openGroupAdmin(g);
+function clearGroup(group){
+if(confirm("Clear all submissions for "+group+"?")){
+db.ref("submissions/"+group).remove().then(()=>admin());
+}
 }
 
-async function downloadStudentCSV(g, st){
-  const gk = safeKey(g), sk = safeKey(st);
-  let data = {};
-  try{ const snap = await db.ref(`submissions/${gk}/${sk}`).get(); data = snap.exists() ? snap.val() : {}; }catch(e){ data = {}; }
-
-  let csv = 'Task,Submitted,URL,Time\n';
-  for(const t of tasks){
-    const rec = data[t];
-    csv += `"${t}",${rec ? 'yes' : 'no'},"${rec ? rec.url : ''}","${rec ? new Date(rec.time).toLocaleString() : ''}"\n`;
-  }
-
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = `${st.replace(/\s+/g,'_')}.csv`; a.click(); URL.revokeObjectURL(url);
-}
-
-async function downloadGroupCSV(g){
-  const gk = safeKey(g);
-  let data = {};
-  try{ const snap = await db.ref(`submissions/${gk}`).get(); data = snap.exists() ? snap.val() : {}; }catch(e){ data = {}; }
-
-  let csv = 'Student,Task,Submitted,URL,Time\n';
-  for(const s of groups[g]){
-    const stData = data[safeKey(s)] || {};
-    for(const t of tasks){
-      const rec = stData[t];
-      csv += `"${s}","${t}",${rec ? 'yes' : 'no'},"${rec ? rec.url : ''}","${rec ? new Date(rec.time).toLocaleString() : ''}"\n`;
-    }
-  }
-
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = `${g.replace(/\s+/g,'_')}.csv`; a.click(); URL.revokeObjectURL(url);
-}
-
-/* -----------------------------
-   Start app
-   ----------------------------- */
-renderLogin();
-
+home();
 </script>
 </body>
 </html>
