@@ -1,20 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <title>Student Statista</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <style>
-body { font-family: Arial, sans-serif; margin: 0; background:#f4f6f8; }
-header { background:#1e88e5; color:#fff; padding:15px; text-align:center; font-size:20px; }
-.container { padding:20px; max-width:1000px; margin:auto; }
-button { padding:8px 14px; margin:5px; cursor:pointer; }
-.card { background:#fff; padding:12px; margin:8px 0; border-radius:6px; }
-.task { display:flex; justify-content:space-between; align-items:center; }
-.yes { color:green; font-weight:bold; }
-.no { color:red; font-weight:bold; }
-.back { background:#555; color:#fff; }
+body{margin:0;font-family:Arial;background:#f4f6fb}
+header{background:#1e88e5;color:#fff;padding:15px;text-align:center;font-size:20px}
+.container{max-width:1100px;margin:20px auto;padding:10px}
+.card{background:#fff;border-radius:8px;padding:15px;margin-bottom:10px}
+button{padding:8px 14px;border:none;border-radius:6px;cursor:pointer}
+.primary{background:#1e88e5;color:white}
+.secondary{background:#777;color:white}
+.danger{background:#c62828;color:white}
+.back{background:#555;color:white;margin-bottom:10px}
+.task{display:flex;justify-content:space-between;align-items:center}
+.green{color:#2e7d32;font-weight:bold}
+.red{color:#c62828;font-weight:bold}
+img{max-width:120px;border-radius:6px;margin-top:6px}
+input[type=file]{display:none}
 </style>
 </head>
 
@@ -22,268 +30,204 @@ button { padding:8px 14px; margin:5px; cursor:pointer; }
 <header>Student Statista</header>
 <div class="container" id="app"></div>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
 <script>
 /* ================= FIREBASE ================= */
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+firebase.initializeApp({
+  apiKey: "AIzaSyDJDVZazGiEUshVicJX8ObvxIjDPgA5rTo",
   authDomain: "studentstatista.firebaseapp.com",
   databaseURL: "https://studentstatista-default-rtdb.firebaseio.com",
-  projectId: "studentstatista",
-  storageBucket: "studentstatista.appspot.com",
-  messagingSenderId: "XXXX",
-  appId: "XXXX"
-};
-firebase.initializeApp(firebaseConfig);
+  projectId: "studentstatista"
+});
 const db = firebase.database();
 
-/* ================= DATA ================= */
+/* ================= CONFIG ================= */
+const IMGBB_KEY = "be4e74e3246530deeb9dd1d7cfb31a3d";
+
 const TASKS = [
  "Dictation","Reading Test Bank","Podcast","Writing task 1","Writing task 2",
- "Speaking Part 1","Speaking Part 2","Speaking Part 3","Listening Strategies",
- "Listening Practice","Reading Practice","Listening Made easy",
- "Cambridge Listening","Cambridge Reading","Cambridge Writing",
- "TED Podcasts","Vocab for ielts book"
+ "Speaking Part 1","Speaking Part 2","Speaking Part 3",
+ "Listening Strategies","Listening Practice","Reading Practice",
+ "Listening Made easy","Cambridge Listening","Cambridge Reading",
+ "Cambridge Writing","TED Podcasts","Vocab for ielts book"
 ];
 
 const GROUPS = {
-
-  "GROUP IELTS M/W/F 9:00": [
-    "HOSHIMOVA NILUFAR",
-    "JURAYEVA AZIZA",
-    "MAHMUDOV SUNNAT",
-    "MUHIDDINOVA MAHBUBA",
-    "NORBOYEV SHOHJAXON",
-    "OCHILOV LOCHINBEK",
-    "ORALOVA SHOHINUR",
-    "RAVSHANOVA ZAYNAB",
-    "TOSHPULATOV ABBOS"
-  ],
-
-  "GROUP IELTS 17:00 MWF": [
-    "ABDURAHIMOVA ZILOLA",
-    "ALIMOV BEHRUZ",
-    "ANVAROVA RUXSHONA",
-    "ASADOV SARDOR",
-    "BAXRONOVA FAYRUZA",
-    "GAFURJONOV ULUGBEK",
-    "ISMOILOV ISMOIL",
-    "JULIBOYEVA ZEBO",
-    "KOZIMJONOVA DURDONA",
-    "QIZIMELIKUZIYEVA RUXSHONA",
-    "NIGMATOV ABDURAHIM",
-    "RAHMATULLAYEV BEXRUZ",
-    "TALABOV SAUD",
-    "XISLATULLAYEV JAVOXIR",
-    "XODJAYEVA LAZIZA",
-    "YORMATOV MIRABROR"
-  ],
-
-  "GROUP IELTS T/T/S 9:00": [
-    "SAIDUSMONOVA MADINA",
-    "SOBIROVA MARJONA",
-    "TILLAYEV OYBEK",
-    "TOSHTEMIROVA MUBORAK",
-    "UMAROVA MOXIGUL"
-  ],
-
-  "GROUP IELTS 10:30 TTS": [
-    "ADXAMOVA MUBINA",
-    "BAXTIYOROVA NILUFAR",
-    "ISAMATOVA LAYLO",
-    "NOSIROVA LAZIZA",
-    "QILICHOVA GULISTON"
-  ],
-
-  "GROUP IELTS T/T/S 14:00": [
-    "ABDUAZIZOVA HABIBA",
-    "ABDUJABBOROVA LOLA",
-    "ABDUVALIYEVA OMINA",
-    "ALISHEROV NURMUHAMMAD",
-    "DJURAYEVA NURGUL",
-    "ISLOMBEKOVA EZOZA",
-    "ISMAILOVA EZOZA",
-    "JORABEKOV AFZALBEK",
-    "MAHMUDJONOV FAYZULLOH",
-    "MIRAHMEDOVA MUSLIMA",
-    "OLIMJONOVA DILNURA",
-    "TOJIBOYEV MUXAMMAD",
-    "UROLOV SIROJ",
-    "XUDOYBERDIYEV QOSIMBEK"
-  ],
-
-  "GROUP IELTS 15:30 TTS": [
-    "ABUBAKIROVA RAHIMA",
-    "IMANKULOVA CHAROS",
-    "ISLOMXOJAYEV YUNUS",
-    "KAYUMKHAJAYEVA JASMINA",
-    "MAVLONBEKOV NURMUHAMMAD",
-    "MIRAXMEDOVA ROBIYA",
-    "MIRSAIDOVA MALIKA",
-    "MIRSODIQOV MIRABROR",
-    "QODIROV ABDUVALI",
-    "QOSIMOVA NARGIZA",
-    "RAVSHANOVA MUSLIMA",
-    "SHARAXMEDOVA KAMILA",
-    "SHERALIYEV ELSHOD",
-    "TOGAYEVA SHAXINA",
-    "UMARXONOVA JAVOHIRPOSHSHA",
-    "YOLDASHEVA FARZONA",
-    "ZOIRXOJAYEVA ROBIYA"
-  ]
-
+ "GROUP IELTS M/W/F 9:00":[
+  "HOSHIMOVA NILUFAR","JURAYEVA AZIZA","MAHMUDOV SUNNAT","MUHIDDINOVA MAHBUBA",
+  "NORBOYEV SHOHJAXON","OCHILOV LOCHINBEK","ORALOVA SHOHINUR",
+  "RAVSHANOVA ZAYNAB","TOSHPULATOV ABBOS"
+ ],
+ "GROUP IELTS 17:00 MWF":[
+  "ABDURAHIMOVA ZILOLA","ALIMOV BEHRUZ","ANVAROVA RUXSHONA","ASADOV SARDOR",
+  "BAXRONOVA FAYRUZA","GAFURJONOV ULUGBEK","ISMOILOV ISMOIL",
+  "JULIBOYEVA ZEBO","KOZIMJONOVA DURDONA","QIZIMELIKUZIYEVA RUXSHONA",
+  "NIGMATOV ABDURAHIM","RAHMATULLAYEV BEXRUZ","TALABOV SAUD",
+  "XISLATULLAYEV JAVOXIR","XODJAYEVA LAZIZA","YORMATOV MIRABROR"
+ ],
+ "GROUP IELTS T/T/S 9:00":[
+  "SAIDUSMONOVA MADINA","SOBIROVA MARJONA","TILLAYEV OYBEK",
+  "TOSHTEMIROVA MUBORAK","UMAROVA MOXIGUL"
+ ],
+ "GROUP IELTS 10:30 TTS":[
+  "ADXAMOVA MUBINA","BAXTIYOROVA NILUFAR",
+  "ISAMATOVA LAYLO","NOSIROVA LAZIZA","QILICHOVA GULISTON"
+ ],
+ "GROUP IELTS T/T/S 14:00":[
+  "ABDUAZIZOVA HABIBA","ABDUJABBOROVA LOLA","ABDUVALIYEVA OMINA",
+  "ALISHEROV NURMUHAMMAD","DJURAYEVA NURGUL","ISLOMBEKOVA EZOZA",
+  "ISMAILOVA EZOZA","JORABEKOV AFZALBEK","MAHMUDJONOV FAYZULLOH",
+  "MIRAHMEDOVA MUSLIMA","OLIMJONOVA DILNURA","TOJIBOYEV MUXAMMAD",
+  "UROLOV SIROJ","XUDOYBERDIYEV QOSIMBEK"
+ ],
+ "GROUP IELTS 15:30 TTS":[
+  "ABUBAKIROVA RAHIMA","IMANKULOVA CHAROS","ISLOMXOJAYEV YUNUS",
+  "KAYUMKHAJAYEVA JASMINA","MAVLONBEKOV NURMUHAMMAD",
+  "MIRAXMEDOVA ROBIYA","MIRSAIDOVA MALIKA","MIRSODIQOV MIRABROR",
+  "QODIROV ABDUVALI","QOSIMOVA NARGIZA","RAVSHANOVA MUSLIMA",
+  "SHARAXMEDOVA KAMILA","SHERALIYEV ELSHOD","TOGAYEVA SHAXINA",
+  "UMARXONOVA JAVOHIRPOSHSHA","YOLDASHEVA FARZONA","ZOIRXOJAYEVA ROBIYA"
+ ]
 };
 
 /* ================= APP ================= */
 const app = document.getElementById("app");
 
-function home() {
- app.innerHTML = `
-  <h2>Select role</h2>
-  <button onclick="teacherLogin()">Teacher</button>
-  <button onclick="assistantLogin()">Assistant</button>
-  <button onclick="studentGroups()">Enter as Student</button>
+function home(){
+ app.innerHTML=`
+  <div class="card"><button class="primary" onclick="student()">Enter as Student</button></div>
+  <div class="card"><button class="primary" onclick="login()">Teacher / Assistant</button></div>
  `;
 }
 
-/* ================= LOGIN ================= */
-function teacherLogin(){
- const u=prompt("Login"); const p=prompt("Password");
- if(u==="Teacher1" && p==="Admin1") teacherPanel();
- else alert("Wrong credentials");
-}
-function assistantLogin(){
- const u=prompt("Login"); const p=prompt("Password");
- if(u==="Assistant1" && p==="Admin2") teacherPanel();
- else alert("Wrong credentials");
+/* ================= STUDENT ================= */
+function student(){
+ let h=`<button class="back" onclick="home()">Back</button><h3>Select group</h3>`;
+ Object.keys(GROUPS).forEach(g=>{
+  h+=`<div class="card"><button class="primary" onclick="students('${g}')">${g}</button></div>`;
+ });
+ app.innerHTML=h;
 }
 
-/* ================= TEACHER ================= */
-function teacherPanel(){
- let html=`<button class="back" onclick="home()">Back</button><h2>Groups</h2>`;
- Object.keys(GROUPS).forEach(g=>{
-  html+=`<div class="card"><button onclick="openGroup('${g}')">${g}</button></div>`;
+function students(group){
+ let h=`<button class="back" onclick="student()">Back</button><h3>${group}</h3>`;
+ GROUPS[group].forEach(s=>{
+  h+=`<div class="card"><button class="primary" onclick="tasks('${group}','${s}')">${s}</button></div>`;
  });
- html+=`<button onclick="exportCSV()">Export CSV</button>`;
- app.innerHTML=html;
+ app.innerHTML=h;
+}
+
+function tasks(group,student){
+ app.innerHTML=`<button class="back" onclick="students('${group}')">Back</button><h3>${student}</h3>`;
+ TASKS.forEach(t=>{
+  db.ref(`submissions/${group}/${student}/${t}`).once("value",snap=>{
+   let d=snap.val();
+   app.innerHTML+=`
+    <div class="card task">
+     <div>
+      <b>${t}</b><br>
+      <span class="${d?'green':'red'}">${d?'Submitted':'Not submitted'}</span>
+      ${d&&d.fileUrl?`<br><img src="${d.fileUrl}">`:''}
+     </div>
+     <label class="primary">
+      Submit<input type="file" accept="image/*"
+       onchange="submitTask(this,'${group}','${student}','${t}')">
+     </label>
+    </div>`;
+  });
+ });
+}
+
+async function submitTask(input,group,student,task){
+ const file=input.files[0];
+ if(!file){alert("File required");return;}
+
+ const fd=new FormData();
+ fd.append("image",file);
+
+ const res=await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`,{
+  method:"POST",body:fd
+ });
+ const json=await res.json();
+
+ await db.ref(`submissions/${group}/${student}/${task}`).set({
+  fileUrl:json.data.url,
+  time:Date.now()
+ });
+
+ tasks(group,student);
+}
+
+/* ================= ADMIN ================= */
+function login(){
+ const u=prompt("Login:");
+ const p=prompt("Password:");
+ if(
+  (u==="Teacher1"&&p==="Admin1")||
+  (u==="Assistant1"&&p==="Admin2")
+ ){
+  admin();
+ }else alert("Wrong credentials");
+}
+
+function admin(){
+ let h=`<button class="back" onclick="home()">Back</button><h3>Admin Panel</h3>`;
+ Object.keys(GROUPS).forEach(g=>{
+  h+=`
+   <div class="card">
+    <b>${g}</b><br><br>
+    <button class="primary" onclick="openGroup('${g}')">Open group</button>
+    <button class="secondary" onclick="exportCSV('${g}')">Export CSV</button>
+    <button class="danger" onclick="clearGroup('${g}')">Clear group files</button>
+   </div>`;
+ });
+ app.innerHTML=h;
 }
 
 function openGroup(group){
- let html=`<button class="back" onclick="teacherPanel()">Back</button><h2>${group}</h2>`;
- GROUPS[group].forEach(st=>{
-  html+=`<div class="card"><strong>${st}</strong><ul>`;
+ app.innerHTML=`<button class="back" onclick="admin()">Back</button><h3>${group}</h3>`;
+ GROUPS[group].forEach(s=>{
+  let block=document.createElement("div");
+  block.className="card";
+  block.innerHTML=`<b>${s}</b><br>`;
   TASKS.forEach(t=>{
-   html+=`<li>${t}: <span id="${group}_${st}_${t}">...</span></li>`;
-   db.ref(`submissions/${group}/${st}/${t}`).once("value",s=>{
-    document.getElementById(`${group}_${st}_${t}`).innerText = s.exists() ? "Yes":"No";
-    document.getElementById(`${group}_${st}_${t}`).className = s.exists()?"yes":"no";
+   db.ref(`submissions/${group}/${s}/${t}`).once("value",snap=>{
+    let d=snap.val();
+    block.innerHTML+=`
+     ${t}: <span class="${d?'green':'red'}">${d?'Yes':'No'}</span>
+     ${d&&d.fileUrl?`<button onclick="window.open('${d.fileUrl}','_blank')">View</button>`:''}
+     <br>`;
    });
   });
-  html+=`</ul></div>`;
+  app.appendChild(block);
  });
- app.innerHTML=html;
 }
 
-/* ================= STUDENT ================= */
-function studentGroups(){
- let html=`<button class="back" onclick="home()">Back</button><h2>Select your group</h2>`;
- Object.keys(GROUPS).forEach(g=>{
-  html+=`<div class="card"><button onclick="studentNames('${g}')">${g}</button></div>`;
- });
- app.innerHTML=html;
+function clearGroup(group){
+ if(confirm("Clear all files for "+group+"?")){
+  db.ref(`submissions/${group}`).remove().then(()=>admin());
+ }
 }
 
-function studentNames(group){
- let html=`<button class="back" onclick="studentGroups()">Back</button><h2>${group}</h2>`;
- GROUPS[group].forEach(st=>{
-  html+=`<div class="card"><button onclick="studentTasks('${group}','${st}')">${st}</button></div>`;
- });
- app.innerHTML=html;
-}
-
-function studentTasks(group,student){
- let html=`<button class="back" onclick="studentNames('${group}')">Back</button>
- <h2>${student}</h2>`;
- TASKS.forEach(t=>{
-  html+=`
-   <div class="card task">
-    <span>${t}</span>
-    <button onclick="submitTask('${group}','${student}','${t}')">Submit</button>
-   </div>`;
- });
- app.innerHTML=html;
-}
-
-async function submitTask(group, student, task) {
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = "image/*,.pdf";
-
-  input.onchange = async () => {
-    const file = input.files[0];
-    if (!file) {
-      alert("File is required");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("image", file);
-
-    const API_KEY = "be4e74e3246530deeb9dd1d7cfb31a3d"; 
-
-    try {
-      const res = await fetch(
-        `https://api.imgbb.com/1/upload?key=${API_KEY}`,
-        { method: "POST", body: formData }
-      );
-
-      const json = await res.json();
-      if (!json.success) throw new Error("Upload failed");
-
-      await firebase.database()
-        .ref(`submissions/${group}/${student}/${task}`)
-        .set({
-          submitted: true,
-          fileUrl: json.data.url,
-          time: Date.now()
-        });
-
-      alert("Submitted with file ✔");
-
-    } catch (e) {
-      alert("Upload failed");
-    }
-  };
-
-  input.click();
-}
-
-/* ================= CSV ================= */
-function exportCSV(){
- let csv="Group,Student,"+TASKS.join(",")+"\n";
- Object.keys(GROUPS).forEach(g=>{
-  GROUPS[g].forEach(s=>{
-   let row=[g,s];
+function exportCSV(group){
+ db.ref(`submissions/${group}`).once("value",snap=>{
+  let data=snap.val()||{};
+  let csv=["Student,"+TASKS.join(",")];
+  GROUPS[group].forEach(s=>{
+   let row=[s];
    TASKS.forEach(t=>{
-    row.push("No");
-    db.ref(`submissions/${g}/${s}/${t}`).once("value",snap=>{
-     if(snap.exists()) row[row.length-1]="Yes";
-    });
+    row.push(data[s]&&data[s][t]?"Yes":"No");
    });
-   csv+=row.join(",")+"\n";
+   csv.push(row.join(","));
   });
+  let blob=new Blob([csv.join("\n")],{type:"text/csv"});
+  let a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=group+".csv";
+  a.click();
  });
- const a=document.createElement("a");
- a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
- a.download="students.csv";
- a.click();
 }
 
 home();
 </script>
 </body>
 </html>
-
-
