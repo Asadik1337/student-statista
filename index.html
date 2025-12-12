@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Статистика учеников — Firebase Storage (диагностика)</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 18px; background:#fafafa; color:#111 }
+    h1 { margin-bottom: 12px }
+    .card { border:1px solid #ccc; padding:12px; margin:8px 0; border-radius:8px; background:#fff }
+    button { padding:8px 12px; border:none; border-radius:6px; cursor:pointer; background:#1976d2; color:#fff }
+    button.secondary{ background:#6c757d }
+    .back { margin-top:14px; background:#6c757d }
+    .task { display:flex; align-items:center; justify-content:space-between; padding:8px; border-radius:6px; margin:6px 0 }
+    .task.pending { background:#fff5f5; color:#b00000; border:1px solid #f5c6c6 }
+    .task.done { background:#f3fff6; color:#1b7a3a; border:1px solid #cde9d2 }
+    .student-line { display:flex; justify-content:space-between; align-items:center }
+    .small { font-size:0.9em; color:#555; margin-top:4px }
+    .controls { margin-bottom:12px }
+    .controls button { margin-right:8px; background:#2e7d32 }
+    .danger { background:#c62828 }
+    .progressBar { width:100%; background:#eee; border-radius:6px; margin-top:8px; overflow:hidden }
+    .progressFill { height:8px; width:0%; background:#1976d2 }
+    @media(max-width:800px){ body{padding:10px} }
+  </style>
+
+  <!-- Firebase compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+
+  <script>
+    // ====== Firebase config (ваш) ======
+    const firebaseConfig = {
+      apiKey: "AIzaSyDJDVZazGiEUshVicJX8ObvxIjDPgA5rTo",
+      authDomain: "studentstatista.firebaseapp.com",
+      projectId: "studentstatista",
+      storageBucket: "studentstatista.appspot.com",
+      messagingSenderId: "584243573578",
+      appId: "1:584243573578:web:59541448a4a8afedf7c7b3",
+      measurementId: "G-ZB9P9C7FP2",
+      databaseURL: "https://studentstatista-default-rtdb.firebaseio.com/"
+    };
+
+    // Инициализация Firebase
+    firebase.initializeApp(firebaseConfig);
+    const rdb = firebase.database();
+    const storage = firebase.storage();
+
+    // Helper: безопасный ключ для путей
+    function encodeKey(s){
+      return String(s).replace(/\./g,'_').replace(/\$/g,'_').replace(/#/g,'_').replace(/\[/g,'_').replace(/\]/g,'_');
+    }
+
+    // ====== STORAGE upload ======
+    async function uploadFileToStorage(group, student, taskName, file, onProgress){
+      try{
+        const folder = `submissions_files/${encodeKey(group)}/${encodeKey(student)}/${encodeKey(taskName)}`;
+        const fileName = Date.now() + '_' + file.name.replace(/\s+/g,'_');
+        const fullPath = `${folder}/${fileName}`;
+        const storageRef = storage.ref().child(fullPath);
+        const uploadTask = storageRef.put(file);
+
+        return await new Promise((resolve, reject) => {
+          uploadTask.on('state_changed',
+            snapshot => {
+              if(onProgress && snapshot.totalBytes) {
+                const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                onProgress(pct);
+              }
+            },
+            error => {
+              reject({ ok:false, error });
+            },
+            async () => {
+              try{
+                const url = await uploadTask.snapshot.ref.getDownloadURL();
+                resolve({ ok:true, url, path: fullPath, name: fileName });
+              }catch(e){
+                reject({ ok:false, error:e });
+              }
+            }
+          );
+        });
+      }catch(err){
+        console.error('uploadFileToStorage error', err);
+        return { ok:false, error: err };
+      }
+    }
+
+    // Записать метаданные в RTDB
+    async function writeSubmissionWithUrl(group, student, taskName, fileMeta){
+      try{
+        const path = `submissions/${encodeKey(group)}/${encodeKey(student)}/${encodeKey(taskName)}`;
+        const payload = { url: fileMeta.url, time: new Date().toISOString(), name: fileMeta.name, storagePath: fileMeta.path };
+        await rdb.ref(path).set(payload);
+        return true;
+      }catch(e){
+        console.error('writeSubmissionWithUrl error', e);
+        return false;
+      }
+    }
+
+    // Загрузка одной записи
+    async function readSubmission(group, student, taskName){
+      try{
+        const path = `submissions/${encodeKey(group)}/${encodeKey(student)}/${encodeKey(taskName)}`;
+        const snap = await rdb.ref(path).get();
+        return snap.exists() ? snap.val() : null;
+      }catch(e){
+        console.error('readSubmission error', e);
+        return null;
+      }
+    }
+
+    // Загрузить всю структуру submissions
+    async function loadDB_firebase(){
+      try{
+        const snap = await rdb.ref('submissions').get();
+        return snap.exists() ? snap.val() : {};
+      }catch(e){
+        console.error('loadDB_firebase error', e);
+        return {};
+      }
+    }
+
+    function subscribeToSubmissions(onChange){
+      const ref = rdb.ref('submissions');
+      const cb = snapshot => { onChange(snapshot.exists() ? snapshot.val() : {}); };
+      ref.on('value', cb);
+      return ()=> ref.off('value', cb);
+    }
+
+    // Fallback localStorage
+    function loadDB_local(){ try{ const d = localStorage.getItem('studentDB'); return d ? JSON.parse(d) : {}; }catch(e){return{}} }
+    function saveDB_local(db){ try{ localStorage.setItem('studentDB', JSON.stringify(db)); }catch(e){ console.warn('local save failed', e); } }
+
+    // Универсальная запись: сначала в storage+db, иначе в local
+    async function persistFileSubmission(group, student, taskName, file, onProgress){
+      // загрузим в Storage
+      const up = await uploadFileToStorage(group, student, taskName, file, onProgress);
+      if(!up.ok){
+        // fallback: сохранить base64 в localStorage
+        try{
+          const reader = new FileReader();
+          return await new Promise((resolve) => {
+            reader.onload = function(){
+              const dbLocal = loadDB_local();
+              if(!dbLocal[group]) dbLocal[group] = {};
+              if(!dbLocal[group][student]) dbLocal[group][student] = {};
+              dbLocal[group][student][taskName] = { data: reader.result, time: new Date().toISOString(), fallback:true };
+              saveDB_local(dbLocal);
+              resolve({ ok:false, fallback:true });
+            };
+            reader.readAsDataURL(file);
+          });
+        }catch(e){
+          return { ok:false, fallback:false };
+        }
+      } else {
+        // записать метаданные в RTDB
+        const ok = await writeSubmissionWithUrl(group, student, taskName, up);
+        return { ok: ok, meta: up };
+      }
+    }
+
+    window.firebaseHelpers = {
+      uploadFileToStorage,
+      writeSubmissionWithUrl,
+      readSubmission,
+      loadDB_firebase,
+      subscribeToSubmissions,
+      persistFileSubmission,
+      loadDB_local, saveDB_local
+    };
+  </script>
+</head>
+<body>
+  <h1>Статистика учеников</h1>
+  <div id="app"></div>
+
+<script>
+/* ========== UI и логика (версия A) с диагностическим uploadTask ========== */
+
+const groups = {
+  "GROUP IELTS M/W/F 9:00": [
+    "HOSHIMOVA NILUFAR","JURAYEVA AZIZA","MAHMUDOV SUNNAT","MUHIDDINOVA MAHBUBA","NORBOYEV SHOHJAXON","OCHILOV LOCHINBEK","ORALOVA SHOHINUR","RAVSHANOVA ZAYNAB","TOSHPULATOV ABBOS"
+  ],
+  "GROUP IELTS 17:00 MWF": [
+    "ABDURAHIMOVA ZILOLA","ALIMOV BEHRUZ","ANVAROVA RUXSHONA","ASADOV SARDOR","BAXRONOVA FAYRUZA","GAFURJONOV ULUGBEK","ISMOILOV ISMOIL","JULIBOYEVA ZEBO","KOZIMJONOVA DURDONA","QIZIMELIKUZIYEVA RUXSHONA","NIGMATOV ABDURAHIM","RAHMATULLAYEV BEXRUZ","TALABOV SAUD","XISLATULLAYEV JAVOXIR","XODJAYEVA LAZIZA","YORMATOV MIRABROR"
+  ],
+  "GROUP IELTS T/T/S 9:00": ["SAIDUSMONOVA MADINA","SOBIROVA MARJONA","TILLAYEV OYBEK","TOSHTEMIROVA MUBORAK","UMAROVA MOXIGUL"],
+  "GROUP IELTS 10:30 TTS": ["ADXAMOVA MUBINA","BAXTIYOROVA NILUFAR","ISAMATOVA LAYLO","NOSIROVA LAZIZA","QILICHOVA GULISTON"],
+  "GROUP IELTS T/T/S 14:00": ["ABDUAZIZOVA HABIBA","ABDUJABBOROVA LOLA","ABDUVALIYEVA OMINA","ALISHEROV NURMUHAMMAD","DJURAYEVA NURGUL","ISLOMBEKOVA EZOZA","ISMAILOVA EZOZA","JORABEKOV AFЗАЛBEK","MAHMUDJONOV FAYZULLOH","MIRAHMEDOVA MUSLIMA","OLIMJONOVA DILNURA","TOJIBOYEV MUXAMMAD","UROLOV SIROJ","XUDOYBERDIYEV QOSIMBEK"],
+  "GROUP IELTS 15:30 TTS": ["ABUBAKIROVA RAHIMA","IMANKULOVA CHAROS","ISLOMXOJAYEV YUNUS","KAYUMKHAJAYEVA JASMINA","MAVLONBEKOV NURMUHAMMAD","MIRAXMEDOVA ROBIYA","MIRSAIDOVA MALIKA","MIRSODIQOV MIRABROR","QODIROV ABDUVALI","QOSIMOVA NARGIZA","RAVSHANOVA MUSLIMA","SHARAXMEDOVA KAMILA","SHERALIYEV ELSHOD","TOGAYEVA SHAXINA","UMARXONOVA JAVOHIRPOSHSHA","YOLDASHEVA FARZONA","ZOIRXOJAYEVA ROBIYA"]
+};
+
+const tasks = ["Задание 1","Задание 2","Задание 3"];
+
+let role = null;
+const users = { teacher: { login: 'teacher1', password: 'Teach@123' }, assistant: { login: 'assistant1', password: 'Assist@123' } };
+
+const app = document.getElementById('app');
+let currentGroup = null;
+let currentStudent = null;
+let adminUnsubscribe = null;
+
+// initial screen
+function showLogin(){
+  if(adminUnsubscribe){ adminUnsubscribe(); adminUnsubscribe = null; }
+  app.innerHTML = `<div id='loginForm' class="card">
+    <div class="note">Войдите как учитель/ассистент или нажмите «Войти как ученик».</div>
+    <input type='text' id='loginInput' placeholder='Логин'/><br>
+    <input type='password' id='passInput' placeholder='Пароль'/><br>
+    <div style="margin-top:8px;">
+      <button onclick='checkLogin()'>Войти</button>
+      <button onclick='renderGroups()' style='margin-left:10px;background:#6c757d'>Войти как ученик</button>
+    </div>
+  </div>`;
+}
+
+function checkLogin(){
+  const l = document.getElementById('loginInput').value.trim();
+  const p = document.getElementById('passInput').value;
+  if(l === users.teacher.login && p === users.teacher.password){ role='teacher'; renderAdmin(); }
+  else if(l === users.assistant.login && p === users.assistant.password){ role='assistant'; renderAdmin(); }
+  else { alert('Неверный логин или пароль'); }
+}
+
+function renderGroups(){
+  if(adminUnsubscribe){ adminUnsubscribe(); adminUnsubscribe = null; }
+  app.innerHTML = '';
+  Object.keys(groups).forEach(g=>{
+    const c = document.createElement('div'); c.className='card';
+    c.innerHTML = `<div class='student-line'><strong>${g}</strong><div><button onclick="selectGroup('${g.replace(/'/g, "\\'")}')">Открыть</button></div></div>`;
+    app.appendChild(c);
+  });
+}
+
+function selectGroup(g){ currentGroup = g; renderStudents(); }
+
+function renderStudents(){
+  app.innerHTML = `<h2>${currentGroup}</h2>`;
+  window.firebaseHelpers.loadDB_firebase().then(db=>{
+    groups[currentGroup].forEach(s=>{
+      const submittedCount = db[currentGroup] && db[currentGroup][s] ? Object.keys(db[currentGroup][s]).length : 0;
+      const c = document.createElement('div'); c.className='card';
+      c.innerHTML = `<div class='student-line'><div><strong>${s}</strong><div class='small'>Отправлено: ${submittedCount}/${tasks.length}</div></div><div><button onclick="selectStudent('${s.replace(/'/g, "\\'")}')">Выбрать</button></div></div>`;
+      app.appendChild(c);
+    });
+    app.innerHTML += `<div style="margin-top:10px"><button class='back' onclick='renderGroups()'>Назад</button></div>`;
+  }).catch(e=>{
+    groups[currentGroup].forEach(s=>{
+      const c = document.createElement('div'); c.className='card';
+      c.innerHTML = `<div class='student-line'><div><strong>${s}</strong><div class='small'>Отправлено: 0/${tasks.length}</div></div><div><button onclick="selectStudent('${s.replace(/'/g, "\\'")}')">Выбрать</button></div></div>`;
+      app.appendChild(c);
+    });
+    app.innerHTML += `<div style="margin-top:10px"><button class='back' onclick='renderGroups()'>Назад</button></div>`;
+  });
+}
+
+function selectStudent(s){ currentStudent = s; renderTasks(); }
+
+function renderTasks(){
+  app.innerHTML = `<h2>${currentStudent} — ${currentGroup}</h2>`;
+  window.firebaseHelpers.loadDB_firebase().then(db=>{
+    const studentData = db[currentGroup] && db[currentGroup][currentStudent] ? db[currentGroup][currentStudent] : {};
+    tasks.forEach(t=>{
+      const done = !!studentData[t];
+      const div = document.createElement('div');
+      div.className = 'task ' + (done ? 'done' : 'pending');
+      div.innerHTML = `<div>${t}</div><div>` + (done ? `<button onclick="viewSubmission('${t.replace(/'/g, "\\'")}')">Посмотреть</button>` : `<button onclick="uploadTask('${t.replace(/'/g, "\\'")}')">Отправить</button>`) + `</div>`;
+      app.appendChild(div);
+    });
+    app.innerHTML += `<div style="margin-top:10px"><button class='back' onclick='renderStudents()'>Назад</button></div>`;
+  }).catch(e=>{
+    tasks.forEach(t=>{
+      const div = document.createElement('div'); div.className='task pending';
+      div.innerHTML = `<div>${t}</div><div><button onclick="uploadTask('${t.replace(/'/g, "\\'")}')">Отправить</button></div>`;
+      app.appendChild(div);
+    });
+    app.innerHTML += `<div style="margin-top:10px"><button class='back' onclick='renderStudents()'>Назад</button></div>`;
+  });
+}
+
+// === ЗАМЕНА: диагностический uploadTask с прогрессом и таймаутом ===
+function uploadTask(taskName){
+  // карточка прогресса
+  const progressCard = document.createElement('div');
+  progressCard.className='card';
+  // используем уникальные id, чтобы избежать конфликтов
+  const fillId = 'progressFillLocal_' + Date.now();
+  const cancelId = 'cancelUploadLocal_' + Date.now();
+  progressCard.innerHTML = `<div style="font-weight:700">Загрузка файла — ${taskName}</div>
+    <div class="progressBar"><div class="progressFill" id="${fillId}"></div></div>
+    <div style="margin-top:8px"><button id="${cancelId}" class="secondary">Отмена</button></div>`;
+  app.appendChild(progressCard);
+
+  let timedOut = false;
+  // таймаут безопасности (например 2 минуты)
+  const TIMEOUT_MS = 2 * 60 * 1000;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    try{ app.removeChild(progressCard); }catch(e){}
+    alert('Загрузка превысила лимит времени. Проверьте соединение или попробуйте уменьшить размер файла.');
+  }, TIMEOUT_MS);
+
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+
+  input.onchange = async ()=>{
+    const file = input.files[0];
+    if(!file){
+      clearTimeout(timeoutId);
+      try{ app.removeChild(progressCard); }catch(e){}
+      return;
+    }
+
+    // небольшой пред-валидатор
+    if(file.size > 20 * 1024 * 1024){ // 20 MB лимит для UX
+      clearTimeout(timeoutId);
+      try{ app.removeChild(progressCard); }catch(e){}
+      alert('Файл слишком большой (>20MB). Уменьшите размер и попробуйте снова.');
+      return;
+    }
+
+    const fill = document.getElementById(fillId);
+
+    try{
+      const result = await window.firebaseHelpers.persistFileSubmission(currentGroup, currentStudent, taskName, file, pct=>{
+        if(fill) fill.style.width = pct + '%';
+      });
+
+      clearTimeout(timeoutId);
+
+      if(result && result.ok){
+        alert('Файл успешно загружен и синхронизирован.');
+      } else if(result && result.fallback){
+        alert('Файл сохранён локально (fallback). Firebase недоступен.');
+      } else {
+        alert('Неизвестная ошибка при загрузке. Смотрите консоль.');
+        console.error('uploadTask result:', result);
+      }
+      renderTasks();
+    }catch(err){
+      clearTimeout(timeoutId);
+      console.error('uploadTask exception:', err);
+      if(err && err.error && err.error.code) {
+        alert('Ошибка загрузки: ' + err.error.code + ' — ' + (err.error.message||''));
+      } else alert('Ошибка при загрузке. Проверьте консоль браузера.');
+    }finally{
+      try{ app.removeChild(progressCard); }catch(e){}
+      // обновим вид независимо от результата
+      try{ renderTasks(); }catch(_){}
+    }
+  };
+
+  // cancel handler: удаляет UI, не отменяет диалог файловой системы
+  document.addEventListener('click', function onCancel(e){
+    if(e.target && e.target.id === cancelId){
+      clearTimeout(timeoutId);
+      try{ app.removeChild(progressCard); }catch(e){}
+      alert('Загрузка отменена пользователем.');
+      document.removeEventListener('click', onCancel);
+    }
+  });
+
+  // триггер выбора файла
+  input.click();
+}
+// === конец uploadTask ===
+
+function viewSubmission(taskName){
+  window.firebaseHelpers.readSubmission(currentGroup, currentStudent, taskName).then(record=>{
+    if(!record){ alert('Нет отправки'); return; }
+    const src = record.url || record.data || '';
+    const w = window.open('');
+    w.document.write(`<h3>${currentStudent} — ${taskName}</h3><p>Время: ${record.time ? new Date(record.time).toLocaleString() : '—'}</p>`);
+    if(src) w.document.write(`<img src="${src}" style="max-width:100%;height:auto;border:1px solid #ccc;padding:8px;border-radius:6px;" alt="submission"/>`);
+    else w.document.write('<p>Нет доступного файла.</p>');
+  });
+}
+
+/* ========== Admin panel with live subscription ========== */
+
+function renderAdmin(){
+  if(adminUnsubscribe){ adminUnsubscribe(); adminUnsubscribe = null; }
+  app.innerHTML = `<h2>${role==='teacher' ? 'Панель учителя' : 'Панель ассистента'}</h2>`;
+  const controlsDiv = document.createElement('div'); controlsDiv.className='controls';
+  controlsDiv.innerHTML = `<button onclick="renderAdmin()">Обновить</button>
+    <button onclick="clearAllConfirm()" class="danger" style="background:#c62828; margin-left:8px;">Очистить всё (только учитель)</button>
+    <div style="margin-top:8px; font-size:0.9em; color:#333">Данные синхронизируются через Firebase Storage + Realtime DB.</div>`;
+  app.appendChild(controlsDiv);
+
+  adminUnsubscribe = window.firebaseHelpers.subscribeToSubmissions(db => {
+    drawAdminFromDB(db);
+  });
+}
+
+function drawAdminFromDB(db){
+  app.innerHTML = `<h2>${role==='teacher' ? 'Панель учителя' : 'Панель ассистента'}</h2>`;
+  const controlsDiv = document.createElement('div'); controlsDiv.className='controls';
+  controlsDiv.innerHTML = `<button onclick="renderAdmin()">Обновить</button>
+    <button onclick="clearAllConfirm()" class="danger" style="background:#c62828; margin-left:8px;">Очистить всё (только учитель)</button>
+    <div style="margin-top:8px; font-size:0.9em; color:#333">Данные синхронизируются через Firebase Storage + Realtime DB.</div>`;
+  app.appendChild(controlsDiv);
+
+  Object.keys(groups).forEach(g=>{
+    const c = document.createElement('div'); c.className='card';
+    c.innerHTML = `<strong>${g}</strong>`;
+    const groupControls = document.createElement('div'); groupControls.style.marginTop='6px';
+    groupControls.innerHTML = `<button onclick="downloadGroupReport('${g.replace(/'/g,"\\'")}')">Скачать отчёт (JSON)</button>
+      <button onclick="downloadGroupCSV('${g.replace(/'/g,"\\'")}')" style="margin-left:8px">Скачать отчёт (CSV)</button>
+      <button onclick="clearGroupConfirm('${g.replace(/'/g,"\\'")}')" style="margin-left:8px;background:#e65100">Очистить отправки группы</button>`;
+    c.appendChild(groupControls);
+
+    groups[g].forEach(s=>{
+      const studentData = db[g] && db[g][s] ? db[g][s] : {};
+      const submitted = Object.keys(studentData).length;
+      const line = document.createElement('div');
+      line.style.marginTop='6px';
+      line.style.display='flex';
+      line.style.justifyContent='space-between';
+      line.style.alignItems='center';
+      line.innerHTML = `<div><span>${s}</span><div class='small'>${submitted}/${tasks.length} отправлено</div></div>`;
+      const right = document.createElement('div');
+      const openBtn = document.createElement('button'); openBtn.textContent='Открыть'; openBtn.onclick = ()=> adminViewStudent(g,s);
+      const clearBtn = document.createElement('button'); clearBtn.textContent='Очистить отправки студента'; clearBtn.style.marginLeft='8px'; clearBtn.style.background='#b71c1c';
+      clearBtn.onclick = ()=> clearStudentConfirm(g,s);
+      right.appendChild(openBtn); right.appendChild(clearBtn);
+      line.appendChild(right);
+      c.appendChild(line);
+    });
+
+    app.appendChild(c);
+  });
+
+  const historyBtn = document.createElement('button'); historyBtn.textContent='История отправок'; historyBtn.style.marginTop='8px'; historyBtn.onclick = renderHistory;
+  app.appendChild(historyBtn);
+  const calendarBtn = document.createElement('button'); calendarBtn.textContent='Календарь'; calendarBtn.style.marginLeft='8px'; calendarBtn.onclick = renderCalendar;
+  app.appendChild(calendarBtn);
+}
+
+function adminViewStudent(group, student){
+  currentGroup = group; currentStudent = student;
+  app.innerHTML = `<h2>${student} — ${group} (просмотр)</h2>`;
+  window.firebaseHelpers.loadDB_firebase().then(db=>{
+    const studentData = db[group] && db[group][student] ? db[group][student] : {};
+    tasks.forEach(t=>{
+      const done = !!studentData[t];
+      const div = document.createElement('div'); div.className = 'task ' + (done ? 'done' : 'pending');
+      div.innerHTML = `<div>${t}</div><div>` + (done ? `<button onclick="adminOpenSubmission('${group.replace(/'/g,"\\'")}','${student.replace(/'/g,"\\'")}','${t.replace(/'/g,"\\'")}')">Посмотреть</button>` : `— не сдано`) + `</div>`;
+      app.appendChild(div);
+    });
+    app.innerHTML += `<div style="margin-top:10px"><button class='back' onclick='renderAdmin()'>Назад</button></div>`;
+  });
+}
+
+function adminOpenSubmission(group, student, task){
+  window.firebaseHelpers.readSubmission(group, student, task).then(rec=>{
+    if(!rec){ alert('Нет отправки'); return; }
+    const src = rec.url || rec.data || '';
+    const w = window.open('');
+    w.document.write(`<h3>${student} — ${task}</h3><p>Группа: ${group}</p><p>Время: ${rec.time ? new Date(rec.time).toLocaleString() : '—'}</p>`);
+    if(src) w.document.write(`<img src="${src}" style="max-width:100%;height:auto;border:1px solid #ccc;padding:8px;border-radius:6px;"/>`);
+    else w.document.write('<p>Нет доступного файла.</p>');
+  });
+}
+
+/* ========== Export / Download ========== */
+async function downloadGroupReport(group){
+  const db = await window.firebaseHelpers.loadDB_firebase();
+  const groupData = db[group] || {};
+  const txt = JSON.stringify(groupData, null, 2);
+  const blob = new Blob([txt], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `${group.replace(/[^a-z0-9]/gi,'_')}_report.json`; a.click(); URL.revokeObjectURL(url);
+}
+
+async function downloadGroupCSV(group){
+  const db = await window.firebaseHelpers.loadDB_firebase();
+  const groupData = db[group] || {};
+  let rows = [['student','task','submitted','time']];
+  (groups[group] || []).forEach(student => {
+    const studentData = groupData[student] || {};
+    tasks.forEach(task => {
+      const rec = studentData[task];
+      if(rec){ rows.push([`"${student}"`,`"${task}"`,'yes', rec.time]); }
+      else { rows.push([`"${student}"`,`"${task}"`,'no','']); }
+    });
+  });
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `${group.replace(/[^a-z0-9]/gi,'_')}_report.csv`; a.click(); URL.revokeObjectURL(url);
+}
+
+/* ========== History & Calendar ========== */
+async function renderHistory(){
+  const db = await window.firebaseHelpers.loadDB_firebase();
+  app.innerHTML = `<h2>История отправок</h2>`;
+  Object.keys(db).forEach(g=>{
+    const c = document.createElement('div'); c.className='card';
+    c.innerHTML = `<strong>${g}</strong>`;
+    Object.keys(db[g]).forEach(s=>{
+      c.innerHTML += `<div style='margin-top:6px;'><em>${s}</em></div>`;
+      Object.keys(db[g][s]).forEach(t=>{
+        const rec = db[g][s][t];
+        c.innerHTML += `<div style='margin-left:10px;'>- ${t} — ${new Date(rec.time).toLocaleString()} <button onclick="adminOpenSubmission('${g.replace(/'/g,"\\'")}','${s.replace(/'/g,"\\'")}','${t.replace(/'/g,"\\'")}')">Посмотреть</button></div>`;
+      });
+    });
+    app.appendChild(c);
+  });
+  app.innerHTML += `<div style="margin-top:10px"><button class='back' onclick='renderAdmin()'>Назад</button></div>`;
+}
+
+function renderCalendar(){
+  app.innerHTML = `<h2>Календарь</h2>`;
+  const inp = document.createElement('input'); inp.type = 'date';
+  inp.onchange = async ()=>{
+    const dateStr = inp.value; const db = await window.firebaseHelpers.loadDB_firebase();
+    app.innerHTML = `<h2>Календарь — ${dateStr}</h2>`;
+    Object.keys(db).forEach(g=>{
+      const c = document.createElement('div'); c.className='card'; c.innerHTML = `<strong>${g}</strong>`;
+      Object.keys(db[g]).forEach(s=>{
+        Object.keys(db[g][s]).forEach(t=>{
+          const rec = db[g][s][t];
+          if(rec.time && rec.time.slice(0,10) === dateStr){
+            c.innerHTML += `<div style='margin-top:6px;'>${s} — ${t} — ${new Date(rec.time).toLocaleTimeString()} <button onclick="adminOpenSubmission('${g.replace(/'/g,"\\'")}','${s.replace(/'/g,"\\'")}','${t.replace(/'/g,"\\'")}')">Посмотреть</button></div>`;
+          }
+        });
+      });
+      app.appendChild(c);
+    });
+    app.innerHTML += `<div style="margin-top:10px"><button class='back' onclick='renderAdmin()'>Назад</button></div>`;
+  };
+  app.appendChild(inp);
+  app.appendChild(document.createElement('br'));
+  app.innerHTML += `<div style="margin-top:10px"><button class='back' onclick='renderAdmin()'>Назад</button></div>`;
+}
+
+/* ========== Clear functions ========== */
+async function clearStudentConfirm(group, student){
+  if(role === 'assistant'){
+    if(!confirm(`Ассистент: действительно очистить отправки студента ${student} из группы ${group}?`)) return;
+  } else {
+    if(!confirm(`Очистить отправки студента ${student} из группы ${group}?`)) return;
+  }
+  try{
+    await rdb.ref(`submissions/${encodeKey(group)}/${encodeKey(student)}`).remove();
+    alert('Отправки студента удалены');
+    renderAdmin();
+  }catch(e){ console.error(e); alert('Ошибка удаления'); }
+}
+
+async function clearGroupConfirm(group){
+  if(role === 'assistant'){
+    if(!confirm(`Ассистент: действительно очистить все отправки в группе ${group}?`)) return;
+  } else {
+    if(!confirm(`Очистить все отправки в группе ${group}?`)) return;
+  }
+  try{
+    await rdb.ref(`submissions/${encodeKey(group)}`).remove();
+    alert('Отправки группы удалены');
+    renderAdmin();
+  }catch(e){ console.error(e); alert('Ошибка удаления'); }
+}
+
+async function clearAllConfirm(){
+  if(role !== 'teacher'){ alert('Только учитель может полностью очистить всё.'); return; }
+  if(!confirm('Очистить все отправки везде?')) return;
+  try{
+    await rdb.ref('submissions').remove();
+    alert('Все отправки удалены');
+    renderAdmin();
+  }catch(e){ console.error(e); alert('Ошибка удаления'); }
+}
+
+/* ========== Start ========== */
+showLogin();
+
+</script>
+</body>
+</html>
