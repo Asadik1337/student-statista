@@ -216,7 +216,7 @@ function studentTasks(group,student){
  app.innerHTML=html;
 }
 
-function submitTask(group, student, task) {
+async function submitTask(group, student, task) {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "image/*,.pdf";
@@ -231,33 +231,29 @@ function submitTask(group, student, task) {
     const formData = new FormData();
     formData.append("image", file);
 
-    // ImgBB (самый простой и стабильный вариант)
-    const API_KEY = "ТВОЙ_IMGBB_API_KEY";
+    const API_KEY = "be4e74e3246530deeb9dd1d7cfb31a3d"; 
 
     try {
-      const res = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY}`, {
-        method: "POST",
-        body: formData
-      });
+      const res = await fetch(
+        `https://api.imgbb.com/1/upload?key=${API_KEY}`,
+        { method: "POST", body: formData }
+      );
 
-      const data = await res.json();
-
-      if (!data.success) throw new Error("Upload failed");
-
-      const fileUrl = data.data.url;
+      const json = await res.json();
+      if (!json.success) throw new Error("Upload failed");
 
       await firebase.database()
         .ref(`submissions/${group}/${student}/${task}`)
         .set({
           submitted: true,
-          fileUrl: fileUrl,
+          fileUrl: json.data.url,
           time: Date.now()
         });
 
       alert("Submitted with file ✔");
 
     } catch (e) {
-      alert("Upload failed. Try again.");
+      alert("Upload failed");
     }
   };
 
@@ -289,4 +285,5 @@ home();
 </script>
 </body>
 </html>
+
 
