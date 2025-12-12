@@ -5,7 +5,7 @@
 <title>Student Statista</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<!-- Uploadcare Direct Upload -->
+<!-- Uploadcare -->
 <script>
   UPLOADCARE_PUBLIC_KEY = "452dd8e20a2e77457998";
   UPLOADCARE_LOCALE = "en";
@@ -18,56 +18,75 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
 <style>
-body {
-  margin:0; font-family:Arial, sans-serif;
+body{
+  margin:0;
+  font-family:Arial;
   background:#f4f4f4;
 }
-.header {
-  background:#0b7dda; color:white; padding:15px;
-  text-align:center; font-size:22px; font-weight:bold;
+.header{
+  background:#0b7dda;
+  color:white;
+  padding:15px;
+  text-align:center;
+  font-size:22px;
+  font-weight:bold;
 }
-.card {
-  background:white; margin:15px; padding:15px;
-  border-radius:10px; box-shadow:0 0 8px rgba(0,0,0,0.1);
+.card{
+  background:white;
+  padding:18px;
+  border-radius:10px;
+  box-shadow:0 0 10px rgba(0,0,0,0.1);
+  margin:15px;
 }
-button {
-  background:#0b7dda; color:white; padding:10px 14px;
-  border:none; border-radius:6px; cursor:pointer; font-size:15px;
+button{
+  padding:10px 14px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  font-size:15px;
 }
-button.secondary {
+button.secondary{
   background:#777;
+  color:white;
 }
-button.danger {
-  background:#d63434;
+button.danger{
+  background:#d33;
+  color:white;
 }
-button.back-btn {
-  background:#555;
+button.back-btn{
+  background:#444;
+  color:white;
   margin-bottom:10px;
 }
-.group-btn, .student-btn {
-  display:block; width:100%; text-align:left;
-  padding:12px; margin:5px 0; border-radius:8px;
-  background:white; border:1px solid #ccc; cursor:pointer;
+.group-btn, .student-btn{
+  width:100%;
+  text-align:left;
+  padding:12px;
+  background:white;
+  border:1px solid #ccc;
+  border-radius:8px;
+  margin:6px 0;
 }
-.task-row {
-  display:flex; justify-content:space-between;
-  background:white; margin:8px 0; padding:10px;
-  border-radius:8px; border:1px solid #ccc;
+.task-row{
+  display:flex;
+  justify-content:space-between;
+  padding:10px;
+  background:white;
+  margin:8px 0;
+  border-radius:6px;
+  border:1px solid #ccc;
 }
-.green { background:#d6ffd6; }
-.red { background:#ffd6d6; }
+.green{ background:#d8ffd8; }
+.red{ background:#ffd8d8; }
 </style>
 </head>
 
 <body>
-
 <div class="header">Student Statista</div>
 <div id="app"></div>
 
 <script>
-/* ==========================
-   FIREBASE INIT
-========================== */
+/* FIREBASE INIT */
 const firebaseConfig = {
   apiKey: "AIzaSyDJDVZazGiEUshVicJX8ObvxIjDPgA5rTo",
   authDomain: "studentstatista.firebaseapp.com",
@@ -80,195 +99,187 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* ==========================
-   GLOBAL STATE
-========================== */
-let currentRole = "student";
+/* GLOBAL */
+let currentRole = null;
 let currentGroup = null;
 let currentStudent = null;
 
 /* ==========================
-   GROUPS & STUDENTS
+   LOGIN SCREEN (FIXED)
 ========================== */
+function renderLogin(){
+  currentRole=null;
+  currentGroup=null;
+  currentStudent=null;
+
+  const app=document.getElementById("app");
+  app.innerHTML="";
+
+  const card=document.createElement("div");
+  card.className="card";
+  card.style.maxWidth="520px";
+  card.style.margin="20px auto";
+
+  card.innerHTML = `
+    <h2 style="margin-top:0;">Login</h2>
+
+    <input id="loginUser" placeholder="Username" style="width:100%;padding:10px;margin-bottom:8px;border-radius:6px;border:1px solid #ccc" />
+    <input id="loginPass" placeholder="Password" type="password"
+      style="width:100%;padding:10px;margin-bottom:12px;border-radius:6px;border:1px solid #ccc" />
+
+    <button id="btnLogin" style="width:100%;margin-bottom:10px;">Login</button>
+    <button id="btnStudent" class="secondary" style="width:100%;">Login as Student</button>
+
+    <div style="margin-top:12px;font-size:13px;color:#555;">
+      Students do NOT need a password.<br>
+      Just click <b>Login as Student</b>.
+    </div>
+  `;
+
+  app.appendChild(card);
+
+  document.getElementById("btnLogin").onclick = () => {
+    const u = loginUser.value.trim();
+    const p = loginPass.value.trim();
+
+    if(u==="Teacher1" && p==="Admin1"){
+      currentRole="teacher";
+      renderAdmin();
+      return;
+    }
+    if(u==="Assistant1" && p==="Admin2"){
+      currentRole="assistant";
+      renderAdmin();
+      return;
+    }
+    alert("Invalid credentials.");
+  };
+
+  document.getElementById("btnStudent").onclick = () => {
+    currentRole="student";
+    renderGroups();
+  };
+}
+/* GROUPS & STUDENTS */
 const groups = {
-"GROUP IELTS M/W/F 9:00": [
-"HOSHIMOVA NILUFAR","JURAYEVA AZIZA","MAHMUDOV SUNNAT",
-"MUHIDDINOVA MAHBUBA","NORBOYEV SHOHJAXON","OCHILOV LOCHINBEK",
-"ORALOVA SHOHINUR","RAVSHANOVA ZAYNAB","TOSHPULATOV ABBOS"
+"GROUP IELTS M/W/F 9:00":[
+"HOSHIMOVA NILUFAR","JURAYEVA AZIZA","MAHMUDOV SUNNAT","MUHIDDINOVA MAHBUBA",
+"NORBOYEV SHOHJAXON","OCHILOV LOCHINBEK","ORALOVA SHOHINUR","RAVSHANOVA ZAYNAB",
+"TOSHPULATOV ABBOS"
 ],
-"GROUP IELTS 17:00 MWF": [
+"GROUP IELTS 17:00 MWF":[
 "ABDURAHIMOVA ZILOLA","ALIMOV BEHRUZ","ANVAROVA RUXSHONA","ASADOV SARDOR",
 "BAXRONOVA FAYRUZA","GAFURJONOV ULUGBEK","ISMOILOV ISMOIL","JULIBOYEVA ZEBO",
 "KOZIMJONOVA DURDONA","QIZIMELIKUZIYEVA RUXSHONA","NIGMATOV ABDURAHIM",
 "RAHMATULLAYEV BEXRUZ","TALABOV SAUD","XISLATULLAYEV JAVOXIR",
 "XODJAYEVA LAZIZA","YORMATOV MIRABROR"
 ],
-"GROUP IELTS T/T/S 9:00": [
-"SAIDUSMONOVA MADINA","SOBIROVA MARJONA","TILLAYEV OYBEK",
-"TOSHTEMIROVA MUBORAK","UMAROVA MOXIGUL"
+"GROUP IELTS T/T/S 9:00":[
+"SAIDUSMONOVA MADINA","SOBIROVA MARJONA","TILLAYEV OYBEK","TOSHTEMIROVA MUBORAK",
+"UMAROVA MOXIGUL"
 ],
-"GROUP IELTS 10:30 TTS": [
-"ADXAMOVA MUBINA","BAXTIYOROVA NILUFAR","ISAMATOVA LAYLO",
-"NASIROVA LAZIZA","QILICHOVA GULISTON"
+"GROUP IELTS 10:30 TTS":[
+"ADXAMOVA MUBINA","BAXTIYOROVA NILUFAR","ISAMATOVA LAYLO","NASIROVA LAZIZA",
+"QILICHOVA GULISTON"
 ],
-"GROUP IELTS T/T/S 14:00": [
-"ABDUAZIZOVA HABIBA","ABDUJABBOROVA LOLA","ABDUVALIYEVA OMINA",
-"ALISHEROV NURMUHAMMAD","DJURAYEVA NURGUL","ISLOMBEKOVA EZOZA",
-"ISMAILOVA EZOZA","JORABEKOV AFZALBEK","MAHMUDJONOV FAYZULLOH",
-"MIRAHMEDOVA MUSLIMA","OLIMJONOVA DILNURA","TOJIBOYEV MUXAMMAD",
-"UROLOV SIROJ","XUDOYBERDIYEV QOSIMBEK"
+"GROUP IELTS T/T/S 14:00":[
+"ABDUAZIZOVA HABIBA","ABDUJABBOROVA LOLA","ABDUVALIYEVA OMINA","ALISHEROV NURMUHAMMAD",
+"DJURAYEVA NURGUL","ISLOMBEKOVA EZOZA","ISMAILOVA EZOZA","JORABEKOV AFZALBEK",
+"MAHMUDJONOV FAYZULLOH","MIRAHMEDOVA MUSLIMA","OLIMJONOVA DILNURA",
+"TOJIBOYEV MUXAMMAD","UROLOV SIROJ","XUDOYBERDIYEV QOSIMBEK"
 ],
-"GROUP IELTS 15:30 TTS": [
+"GROUP IELTS 15:30 TTS":[
 "ABUBAKIROVA RAHIMA","IMANKULOVA CHAROS","ISLOMXOJAYEV YUNUS",
-"KAYUMKHAJAYEVA JASMINA","MAVLONBEKOV NURMUHAMMAD",
-"MIRAXMEDOVA ROBIYA","MIRSAIDOVA MALIKA","MIRSODIQOV MIRABROR",
-"QODIROV ABDUVALI","QOSIMOVA NARGIZA","RAVSHANOVA MUSLIMA",
-"SHARAXMEDOVA KAMILA","SHERALIYEV ELSHOD","TOGAYEVA SHAXINA",
-"UMARXONOVA JAVOHIRPOSHSHA","YOLDASHEVA FARZONA","ZOIRXOJAYEVA ROBIYA"
+"KAYUMKHAJAYEVA JASMINA","MAVLONBEKOV NURMUHAMMAD","MIRAXMEDOVA ROBIYA",
+"MIRSAIDOVA MALIKA","MIRSODIQOV MIRABROR","QODIROV ABDUVALI",
+"QOSIMOVA NARGIZA","RAVSHANOVA MUSLIMA","SHARAXMEDOVA KAMILA",
+"SHERALIYEV ELSHOD","TOGAYEVA SHAXINA","UMARXONOVA JAVOHIRPOSHSHA",
+"YOLDASHEVA FARZONA","ZOIRXOJAYEVA ROBIYA"
 ]
 };
 
-/* ==========================
-   TASK LIST
-========================== */
-const tasks = [
+/* TASKS */
+const tasks=[
 "Dictation","Reading Test Bank","Podcast","Writing task 1","Writing task 2",
 "Speaking Part 1","Speaking Part 2","Speaking Part 3","Listening Strategies",
-"Listening Practice","Reading Practice","Listening Made easy",
-"Cambridge Listening","Cambridge Reading","Cambridge Writing",
-"TED Podcasts","Vocab for IELTS book"
+"Listening Practice","Reading Practice","Listening Made easy","Cambridge Listening",
+"Cambridge Reading","Cambridge Writing","TED Podcasts","Vocab for IELTS book"
 ];
 
-/* ==========================
-   LOGIN SCREEN
-========================== */
-function renderLogin(){
-  app.innerHTML = "";
-  const c=document.createElement("div");
-  c.className="card";
-  c.innerHTML=`
-    <h3>Login</h3>
-    <input id="loginUser" placeholder="Username" style="width:100%;padding:10px;margin-bottom:10px"/>
-    <input id="loginPass" placeholder="Password" type="password" style="width:100%;padding:10px;margin-bottom:10px"/>
-
-    <button onclick="doLogin()" style="width:100%;margin-bottom:10px;">Login</button>
-    <button class="secondary" onclick="renderGroups()" style="width:100%;">Login as Student</button>
-
-    <div style="margin-top:10px;font-size:13px;color:#444;">
-      Students do not need a password. Click "Login as Student".
-    </div>
-  `;
-  app.appendChild(c);
-}
-
-/* ==========================
-   DO LOGIN (TEACHER / ASSISTANT)
-========================== */
-function doLogin(){
-  const u=document.getElementById("loginUser").value.trim();
-  const p=document.getElementById("loginPass").value.trim();
-
-  if(u==="Teacher1" && p==="Admin1"){
-    currentRole="teacher";
-    renderAdmin();
-    return;
-  }
-  if(u==="Assistant1" && p==="Admin2"){
-    currentRole="assistant";
-    renderAdmin();
-    return;
-  }
-  alert("Invalid credentials");
-}
-
-/* ==========================
-   RENDER GROUPS (STUDENT MODE)
-========================== */
+/* STUDENT: SELECT GROUP */
 function renderGroups(){
-  currentRole="student";
   app.innerHTML = "<h3>Select your group</h3>";
 
-  for(let g in groups){
-    const b=document.createElement("button");
-    b.className="group-btn";
-    b.textContent=g;
-    b.onclick=()=>selectGroup(g);
-    app.appendChild(b);
+  for(const g in groups){
+    const btn=document.createElement("button");
+    btn.className="group-btn";
+    btn.textContent=g;
+    btn.onclick=()=>selectGroup(g);
+    app.appendChild(btn);
   }
 }
 
-/* ==========================
-   SELECT GROUP / STUDENT
-========================== */
+/* SELECT GROUP -> SHOW STUDENTS */
 function selectGroup(g){
   currentGroup=g;
-  app.innerHTML=`<button class='back-btn' onclick='renderGroups()'>Back</button><h3>${g}</h3>`;
+  app.innerHTML = `<button class="back-btn" onclick="renderGroups()">Back</button><h3>${g}</h3>`;
 
   groups[g].forEach(st=>{
-    const btn=document.createElement("button");
-    btn.className="student-btn";
-    btn.textContent=st;
-    btn.onclick=()=>{ currentStudent=st; renderStudentTasks(); };
-    app.appendChild(btn);
+    const b=document.createElement("button");
+    b.className="student-btn";
+    b.textContent=st;
+    b.onclick=()=>{ currentStudent=st; renderStudentTasks(); };
+    app.appendChild(b);
   });
 }
 
-/* ==========================
-   STUDENT TASK VIEW
-========================== */
+/* RENDER STUDENT TASKS */
 async function renderStudentTasks(){
-  app.innerHTML=
-  `<button class='back-btn' onclick='selectGroup("${currentGroup}")'>Back</button>
-   <h3>${currentStudent}</h3><h4>Your tasks</h4>`;
+  app.innerHTML =
+    `<button class="back-btn" onclick='selectGroup("${currentGroup}")'>Back</button>
+     <h3>${currentStudent}</h3><h4>Your tasks</h4>`;
 
   let submitted={};
-  try{
-    const snap=await db.ref("submissions/"+currentGroup+"/"+currentStudent).get();
-    submitted=snap.exists()?snap.val():{};
-  }catch(e){ submitted={}; }
+  const snap = await db.ref(`submissions/${currentGroup}/${currentStudent}`).get();
+  if(snap.exists()) submitted=snap.val();
 
   tasks.forEach(t=>{
-    const done = submitted[t];
+    const rec=submitted[t];
     const row=document.createElement("div");
-    row.className="task-row "+(done?"green":"red");
+    row.className="task-row "+(rec?"green":"red");
     row.innerHTML = `
       <span>${t}</span>
       <div>
-        ${done? `<button onclick="window.open('${done.url}','_blank')">View</button>` : ``}
-        <button onclick="uploadTask('${t}')">${done?"Resubmit":"Submit"}</button>
-      </div>
-    `;
+        ${rec ? `<button onclick="window.open('${rec.url}','_blank')">View</button>` : ""}
+        <button onclick="uploadTask('${t}')">${rec?"Resubmit":"Submit"}</button>
+      </div>`;
     app.appendChild(row);
   });
 }
 
-/* ==========================
-   UPLOAD TASK (UPLOADCARE)
-========================== */
-async function uploadTask(taskName){
+/* UPLOAD TASK (UPLOADCARE) */
+async function uploadTask(t){
   const file = await uploadcare.openDialog().done(f=>f);
   const info = await file.promise();
 
-  await db.ref("submissions/"+currentGroup+"/"+currentStudent+"/"+taskName)
-    .set({
-      url:info.cdnUrl,
-      time:Date.now()
-    });
+  await db.ref(`submissions/${currentGroup}/${currentStudent}/${t}`).set({
+    url:info.cdnUrl,
+    time:Date.now()
+  });
 
-  alert("Uploaded successfully!");
+  alert("Uploaded!");
   renderStudentTasks();
 }
 
-/* ==========================
-   ADMIN PANEL
-========================== */
+/* ADMIN PANEL */
 function renderAdmin(){
-  app.innerHTML =
-  `<button class='back-btn' onclick='renderLogin()'>Logout</button>
-   <h3>Admin Panel (${currentRole})</h3>
-   <h4>Select a group</h4>`;
+  app.innerHTML = `
+    <button class="back-btn" onclick="renderLogin()">Logout</button>
+    <h3>Admin Panel (${currentRole})</h3>
+    <h4>Select a group</h4>
+  `;
 
-  for(let g in groups){
+  for(const g in groups){
     const b=document.createElement("button");
     b.className="group-btn";
     b.textContent=g;
@@ -277,23 +288,21 @@ function renderAdmin(){
   }
 }
 
-/* ==========================
-   ADMIN: OPEN GROUP
-========================== */
+/* ADMIN OPEN GROUP */
 async function openGroupAdmin(g){
   currentGroup=g;
-  app.innerHTML=
-  `<button class='back-btn' onclick='renderAdmin()'>Back</button>
-   <h3>${g}</h3>`;
+
+  app.innerHTML =
+    `<button class="back-btn" onclick="renderAdmin()">Back</button><h3>${g}</h3>`;
 
   let data={};
-  try{
-    const snap=await db.ref("submissions/"+g).get();
-    data=snap.exists()?snap.val():{};
-  }catch(e){ data={}; }
+  const snap = await db.ref(`submissions/${g}`).get();
+  if(snap.exists()) data=snap.val();
 
   groups[g].forEach(st=>{
-    const count = data[st]? Object.keys(data[st]).length : 0;
+    const stData=data[st]||{};
+    const count=Object.keys(stData).length;
+
     const row=document.createElement("div");
     row.className="task-row";
     row.innerHTML=`
@@ -301,35 +310,31 @@ async function openGroupAdmin(g){
       <div>
         <button onclick="viewStudent('${st}')">Open</button>
         <button class="secondary" onclick="downloadStudentCSV('${g}','${st}')">Export</button>
-      </div>
-    `;
+      </div>`;
     app.appendChild(row);
   });
 
   app.innerHTML+=`
-    <button class="danger" style="margin-top:15px;"
-      onclick="downloadGroupCSV('${g}')">Export whole group</button>
+    <button class="danger" style="margin-top:15px;" onclick="downloadGroupCSV('${g}')">
+      Export whole group
+    </button>
 
     ${currentRole==="teacher" ?
-      `<button class="danger" style="margin-left:10px"
-          onclick="clearGroup('${g}')">Clear group</button>` : ""}
+      `<button class="danger" style="margin-left:10px;" onclick="clearGroup('${g}')">Clear group</button>` : ""}
   `;
 }
 
-/* ==========================
-   VIEW STUDENT (ADMIN)
-========================== */
+/* ADMIN VIEW STUDENT */
 async function viewStudent(st){
   currentStudent=st;
+
   app.innerHTML=
-  `<button class='back-btn' onclick='openGroupAdmin("${currentGroup}")'>Back</button>
-   <h3>${st}</h3>`;
+    `<button class="back-btn" onclick="openGroupAdmin('${currentGroup}')">Back</button>
+     <h3>${st}</h3>`;
 
   let data={};
-  try{
-    const snap=await db.ref("submissions/"+currentGroup+"/"+st).get();
-    data=snap.exists()?snap.val():{};
-  }catch(e){ data={}; }
+  const snap = await db.ref(`submissions/${currentGroup}/${st}`).get();
+  if(snap.exists()) data=snap.val();
 
   tasks.forEach(t=>{
     const rec=data[t];
@@ -338,73 +343,60 @@ async function viewStudent(st){
     row.innerHTML=`
       <span>${t}</span>
       <div>
-        ${rec? `<button onclick="window.open('${rec.url}','_blank')">View</button>` : ""}
-        ${currentRole==="teacher" ? `<button class='danger' onclick="clearTask('${t}')">Delete</button>` : ""}
-      </div>
-    `;
+        ${rec? `<button onclick="window.open('${rec.url}','_blank')">View</button>`:""}
+        ${currentRole==="teacher" ? `<button class="danger" onclick="clearTask('${t}')">Delete</button>`:""}
+      </div>`;
     app.appendChild(row);
   });
 }
 
-/* ==========================
-   CLEAR TASK (ADMIN)
-========================== */
+/* CLEAR TASK */
 async function clearTask(t){
-  await db.ref("submissions/"+currentGroup+"/"+currentStudent+"/"+t).remove();
+  await db.ref(`submissions/${currentGroup}/${currentStudent}/${t}`).remove();
   viewStudent(currentStudent);
 }
 
-/* ==========================
-   CLEAR GROUP (TEACHER)
-========================== */
+/* CLEAR GROUP (TEACHER ONLY) */
 async function clearGroup(g){
   if(!confirm("Are you sure?")) return;
-  await db.ref("submissions/"+g).remove();
+  await db.ref(`submissions/${g}`).remove();
   openGroupAdmin(g);
 }
 
-/* ==========================
-   EXPORT STUDENT CSV
-========================== */
-async function downloadStudentCSV(g,st){
+/* EXPORT STUDENT */
+async function downloadStudentCSV(g, st){
   let data={};
-  try{
-    const snap=await db.ref("submissions/"+g+"/"+st).get();
-    data=snap.exists()?snap.val():{};
-  }catch(e){ data={}; }
+  const snap=await db.ref(`submissions/${g}/${st}`).get();
+  if(snap.exists()) data=snap.val();
 
   let csv="Task,Submitted,URL,Time\n";
   tasks.forEach(t=>{
     const rec=data[t];
-    csv+=`${t},${rec?"yes":"no"},${rec?rec.url:""},${rec?new Date(rec.time).toLocaleString():""}\n`;
+    csv += `${t},${rec?"yes":"no"},${rec?rec.url:""},${rec?new Date(rec.time).toLocaleString():""}\n`;
   });
 
   const blob=new Blob([csv],{type:"text/csv"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
   a.href=url;
-  a.download=`${st.replace(/ /g,"_")}.csv`;
+  a.download=`${st}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
 
-/* ==========================
-   EXPORT WHOLE GROUP CSV
-========================== */
+/* EXPORT WHOLE GROUP */
 async function downloadGroupCSV(g){
   let data={};
-  try{
-    const snap=await db.ref("submissions/"+g).get();
-    data=snap.exists()?snap.val():{};
-  }catch(e){ data={}; }
+  const snap=await db.ref(`submissions/${g}`).get();
+  if(snap.exists()) data=snap.val();
 
   let csv="Student,Task,Submitted,URL,Time\n";
 
   groups[g].forEach(st=>{
     const stData=data[st]||{};
-    tasks.forEach(task=>{
-      const rec=stData[task];
-      csv+=`${st},${task},${rec?"yes":"no"},${rec?rec.url:""},${rec?new Date(rec.time).toLocaleString():""}\n`;
+    tasks.forEach(t=>{
+      const rec=stData[t];
+      csv += `${st},${t},${rec?"yes":"no"},${rec?rec.url:""},${rec?new Date(rec.time).toLocaleString():""}\n`;
     });
   });
 
@@ -412,14 +404,12 @@ async function downloadGroupCSV(g){
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
   a.href=url;
-  a.download=`${g.replace(/ /g,"_")}.csv`;
+  a.download=`${g}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
 
-/* ==========================
-   DEFAULT SCREEN
-========================== */
+/* START APP */
 renderLogin();
 
 </script>
