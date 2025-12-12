@@ -198,19 +198,42 @@ function admin(){
 }
 
 function openGroup(group){
- app.innerHTML=`<button class="back" onclick="admin()">Back</button><h3>${group}</h3>`;
- GROUPS[group].block.innerHTML += `
-  ${t} :
-  <span class="${d && d.fileUrl ? 'green' : 'red'}">
-    ${d && d.fileUrl ? 'Yes' : 'No'}
-  </span>
-  ${
-    d && d.fileUrl
-      ? `<button onclick="window.open('${d.fileUrl}','_blank')">View photo</button>`
-      : ''
-  }
-  <br>
-`;
+  app.innerHTML = `
+    <button class="back" onclick="admin()">Back</button>
+    <h3>${group}</h3>
+  `;
+
+  GROUPS[group].forEach(student => {
+    const block = document.createElement("div");
+    block.className = "card";
+    block.innerHTML = `<b>${student}</b><br>`;
+
+    TASKS.forEach(task => {
+      db.ref(`submissions/${group}/${student}/${task}`)
+        .once("value")
+        .then(snap => {
+          const d = snap.val();
+
+          block.innerHTML += `
+            ${task} :
+            <span class="${d && d.fileUrl ? 'green' : 'red'}">
+              ${d && d.fileUrl ? 'Yes' : 'No'}
+            </span>
+            ${
+              d && d.fileUrl
+                ? `<button onclick="window.open('${d.fileUrl}','_blank')">
+                     View photo
+                   </button>`
+                : ''
+            }
+            <br>
+          `;
+        });
+    });
+
+    app.appendChild(block);
+  });
+}
 
 function clearGroup(group) {
   if (!confirm(`Clear ALL files for group:\n${group}?`)) return;
@@ -244,4 +267,5 @@ home();
 </script>
 </body>
 </html>
+
 
