@@ -199,71 +199,64 @@ db.ref(`submissions/${g}/${s}/${t}`).set({url:res.data.url,time:Date.now()})
 }
 
 /* ================= ADMIN ================= */
-function admin(){
-let l=prompt("Login:");
-let p=prompt("Password:");
-if(!((l==="Teacher1"&&p==="Admin1")||(l==="Assistant1"&&p==="Admin2"))){
-alert("Wrong credentials");return;
-}
-
-let h=`<button class="back" onclick="home()">Back</button>
-<h3>Admin Panel</h3>
-
-<label>From <input type="date" id="from"></label>
-<label>To <input type="date" id="to"></label>
-<button class="primary" onclick="loadAdmin()">Apply</button>
-<hr>`;
-
 Object.keys(GROUPS).forEach(g=>{
-h+=`
-<div class="card">
-<b>${g}</b><br>
-<button onclick="exportCSV('${g}')">Export CSV</button>
-<button onclick="clearGroup('${g}')">Clear Group</button>
-</div>`;
+  h+=`
+  <div class="card">
+    <b>${g}</b><br><br>
+    <button class="primary" onclick="openGroupAdmin('${g}')">Open group</button>
+    <button onclick="exportCSV('${g}')">Export CSV</button>
+    <button onclick="clearGroup('${g}')">Clear Group</button>
+  </div>`;
 });
-app.innerHTML=h;
-loadAdmin();
-}
 
-function loadAdmin(){
-let from=document.getElementById("from").valueAsNumber||0;
-let to=document.getElementById("to").valueAsNumber||Date.now();
-db.ref("submissions").once("value",snap=>{
-let data=snap.val()||{};
-Object.keys(data).forEach(g=>{
-let block=document.createElement("div");
-block.className="card";
-block.innerHTML=`<h4>${g}</h4>`;
-Object.keys(data[g]).forEach(s=>{
-Object.keys(data[g][s]).forEach(t=>{
-let r=data[g][s][t];
-if(r.time>=from&&r.time<=to){
-block.innerHTML+=`${s} — ${t} — <a href="${r.url}" target="_blank">view</a><br>`;
-}
-});
-});
-app.appendChild(block);
-});
-});
+function openGroupAdmin(group){
+  app.innerHTML = `
+    <button class="back" onclick="admin()">Back</button>
+    <h3>${group}</h3>
+  `;
+
+  GROUPS[group].forEach(student=>{
+    let studentBlock = document.createElement("div");
+    studentBlock.className = "card";
+    studentBlock.innerHTML = `<b>${student}</b><br>`;
+
+    TASKS.forEach(task=>{
+      db.ref(`submissions/${group}/${student}/${task}`)
+        .once("value",snap=>{
+          let status = snap.exists() ? "Yes" : "No";
+          let color = snap.exists() ? "green" : "red";
+          studentBlock.innerHTML +=
+            `<span class="${color}">${task}: ${status}</span><br>`;
+        });
+    });
+
+    app.appendChild(studentBlock);
+  });
 }
 
 function exportCSV(group){
-db.ref(`submissions/${group}`).once("value",snap=>{
-let rows=["Student,Task,URL,Date"];
-let d=snap.val()||{};
-Object.keys(d).forEach(s=>{
-Object.keys(d[s]).forEach(t=>{
-let r=d[s][t];
-rows.push(`${s},${t},${r.url},${new Date(r.time).toLocaleString()}`);
-});
-});
-let blob=new Blob([rows.join("\n")],{type:"text/csv"});
-let a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download=group+".csv";
-a.click();
-});
+  db.ref(`submissions/${group}`).once("value",snap=>{
+    let data = snap.val() || {};
+
+    // Header
+    let header = ["Student", ...TASKS];
+    let rows = [header.join(",")];
+
+    GROUPS[group].forEach(student=>{
+      let row = [student];
+      TASKS.forEach(task=>{
+        let yesNo = (data[student] && data[student][task]) ? "Yes" : "No";
+        row.push(yesNo);
+      });
+      rows.push(row.join(","));
+    });
+
+    let blob = new Blob([rows.join("\n")], { type:"text/csv" });
+    let a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = group.replace(/\s+/g,"_") + "_report.csv";
+    a.click();
+  });
 }
 
 function clearGroup(group){
@@ -276,3 +269,4 @@ home();
 </script>
 </body>
 </html>
+
