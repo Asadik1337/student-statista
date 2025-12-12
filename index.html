@@ -1,570 +1,344 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Статистика учеников — StudentStatista</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 18px; background:#fafafa; color:#111 }
-    h1 { margin-bottom: 8px }
-    h2 { margin-top: 6px }
-    .card { border:1px solid #ddd; padding:12px; margin:8px 0; border-radius:8px; background:#fff; box-shadow:0 1px 0 rgba(0,0,0,0.02) }
-    button { padding:8px 12px; border:none; border-radius:6px; cursor:pointer; background:#1976d2; color:#fff }
-    button.secondary{ background:#6c757d }
-    .back { margin-top:14px; background:#6c757d }
-    .task { display:flex; align-items:center; justify-content:space-between; padding:8px; border-radius:6px; margin:6px 0 }
-    .task.pending { background:#fff5f5; color:#b00000; border:1px solid #f5c6c6 }
-    .task.done { background:#f3fff6; color:#1b7a3a; border:1px solid #cde9d2 }
-    .student-line { display:flex; justify-content:space-between; align-items:center }
-    .small { font-size:0.9em; color:#555; margin-top:4px }
-    .controls { margin-bottom:12px }
-    .danger { background:#c62828 }
-    .progressBar { width:100%; background:#eee; border-radius:6px; margin-top:8px; overflow:hidden }
-    .progressFill { height:8px; width:0%; background:#1976d2 }
-    .note { color:#333; margin-bottom:8px }
-    @media(max-width:800px){ body{padding:10px} }
-  </style>
-
-  <!-- Firebase compat SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
-
-  <script>
-    // ====== Ваш Firebase config ======
-    const firebaseConfig = {
-      apiKey: "AIzaSyDJDVZazGiEUshVicJX8ObvxIjDPgA5rTo",
-      authDomain: "studentstatista.firebaseapp.com",
-      projectId: "studentstatista",
-      storageBucket: "studentstatista.appspot.com",
-      messagingSenderId: "584243573578",
-      appId: "1:584243573578:web:59541448a4a8afedf7c7b3",
-      measurementId: "G-ZB9P9C7FP2",
-      databaseURL: "https://studentstatista-default-rtdb.firebaseio.com/"
-    };
-
-    // Инициализация Firebase
-    try {
-      firebase.initializeApp(firebaseConfig);
-    } catch (e) {
-      console.error('Firebase init error', e);
+<meta charset="UTF-8">
+<title>Student Statista</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f2f2f2; }
+    header { background:#1e88e5; padding:15px; color:white; font-size:20px; font-weight:700; text-align:center; }
+    #app { padding:15px; }
+    .card {
+        background:white; padding:15px; border-radius:10px; margin-bottom:15px;
+        box-shadow:0 2px 6px rgba(0,0,0,0.12);
     }
-    const rdb = firebase.database();
-    const storage = firebase.storage();
-
-    // Helper: безопасный ключ для путей
-    function encodeKey(s){
-      return String(s || '').replace(/\./g,'_').replace(/\$/g,'_').replace(/#/g,'_').replace(/\[/g,'_').replace(/\]/g,'_');
+    button {
+        padding:8px 14px; font-size:14px; border:none; border-radius:5px;
+        background:#1e88e5; color:white; cursor:pointer;
     }
-
-    /* ========== Storage/DB helpers ========== */
-
-    // Upload file to Storage with progress callback (onProgress receives 0..100)
-    async function uploadFileToStorage(group, student, taskName, file, onProgress){
-      try{
-        const folder = `submissions_files/${encodeKey(group)}/${encodeKey(student)}/${encodeKey(taskName)}`;
-        const fileName = Date.now() + '_' + file.name.replace(/\s+/g,'_');
-        const fullPath = `${folder}/${fileName}`;
-        const storageRef = storage.ref().child(fullPath);
-        const uploadTask = storageRef.put(file);
-
-        return await new Promise((resolve, reject) => {
-          uploadTask.on('state_changed',
-            snapshot => {
-              if(onProgress && snapshot.totalBytes) {
-                const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                onProgress(pct);
-              }
-            },
-            error => { reject({ ok:false, error }); },
-            async () => {
-              try{
-                const url = await uploadTask.snapshot.ref.getDownloadURL();
-                resolve({ ok:true, url, path: fullPath, name: fileName });
-              }catch(e){ reject({ ok:false, error:e }); }
-            }
-          );
-        });
-      }catch(err){
-        console.error('uploadFileToStorage error', err);
-        return { ok:false, error: err };
-      }
+    button.secondary { background:#777; }
+    button.danger { background:#d32f2f; }
+    .task-row {
+        display:flex; justify-content:space-between; align-items:center;
+        margin:8px 0; padding:8px; background:#f7f7f7; border-radius:6px;
     }
-
-    // Write metadata into Realtime DB
-    async function writeSubmissionWithUrl(group, student, taskName, fileMeta){
-      try{
-        const path = `submissions/${encodeKey(group)}/${encodeKey(student)}/${encodeKey(taskName)}`;
-        const payload = { url: fileMeta.url, time: new Date().toISOString(), name: fileMeta.name, storagePath: fileMeta.path };
-        await rdb.ref(path).set(payload);
-        return true;
-      }catch(e){
-        console.error('writeSubmissionWithUrl error', e);
-        return false;
-      }
+    .green { background:#c8e6c9 !important; }
+    .red { background:#ffcdd2 !important; }
+    .student-row {
+        display:flex; justify-content:space-between; align-items:center;
+        padding:6px; background:#f1f1f1; border-radius:5px; margin-top:6px;
     }
-
-    // Read one submission
-    async function readSubmission(group, student, taskName){
-      try{
-        const path = `submissions/${encodeKey(group)}/${encodeKey(student)}/${encodeKey(taskName)}`;
-        const snap = await rdb.ref(path).get();
-        return snap.exists() ? snap.val() : null;
-      }catch(e){
-        console.error('readSubmission error', e);
-        return null;
-      }
+    .back-btn {
+        background:#555; margin-bottom:10px;
     }
-
-    // Load full submissions tree
-    async function loadDB_firebase(){
-      try{
-        const snap = await rdb.ref('submissions').get();
-        return snap.exists() ? snap.val() : {};
-      }catch(e){
-        console.error('loadDB_firebase error', e);
-        return {};
-      }
-    }
-
-    // Subscribe live
-    function subscribeToSubmissions(onChange){
-      try{
-        const ref = rdb.ref('submissions');
-        const cb = snapshot => { onChange(snapshot.exists() ? snapshot.val() : {}); };
-        ref.on('value', cb);
-        return ()=> ref.off('value', cb);
-      }catch(e){
-        console.error('subscribeToSubmissions error', e);
-        return ()=>{};
-      }
-    }
-
-    // localStorage fallback
-    function loadDB_local(){ try{ const d = localStorage.getItem('studentDB'); return d ? JSON.parse(d) : {}; }catch(e){return{}} }
-    function saveDB_local(db){ try{ localStorage.setItem('studentDB', JSON.stringify(db)); }catch(e){ console.warn('local save failed', e); } }
-
-    // Persist file: Storage -> RTDB, fallback to local base64 if Storage fails
-    async function persistFileSubmission(group, student, taskName, file, onProgress){
-      const up = await uploadFileToStorage(group, student, taskName, file, onProgress);
-      if(!up.ok){
-        // fallback: store base64 in localStorage
-        try{
-          const reader = new FileReader();
-          return await new Promise((resolve) => {
-            reader.onload = function(){
-              const dbLocal = loadDB_local();
-              if(!dbLocal[group]) dbLocal[group] = {};
-              if(!dbLocal[group][student]) dbLocal[group][student] = {};
-              dbLocal[group][student][taskName] = { data: reader.result, time: new Date().toISOString(), fallback:true };
-              saveDB_local(dbLocal);
-              resolve({ ok:false, fallback:true, error: up.error });
-            };
-            reader.readAsDataURL(file);
-          });
-        }catch(e){
-          return { ok:false, fallback:false, error:e };
-        }
-      } else {
-        const ok = await writeSubmissionWithUrl(group, student, taskName, up);
-        return { ok: ok, meta: up };
-      }
-    }
-
-    window.firebaseHelpers = {
-      uploadFileToStorage,
-      writeSubmissionWithUrl,
-      readSubmission,
-      loadDB_firebase,
-      subscribeToSubmissions,
-      persistFileSubmission,
-      loadDB_local, saveDB_local
-    };
-  </script>
+</style>
 </head>
+
 <body>
-  <h1>Статистика учеников</h1>
-  <div id="app"></div>
+<header>Student Statista</header>
+<div id="app"></div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+<!-- Uploadcare (Direct Upload API requires no widget scripts, only this polyfill) -->
+<script>
+window.UPLOADCARE_PUBLIC_KEY = "452dd8e20a2e77457998";
+</script>
 
 <script>
-/* ================= Application UI & logic ================= */
 
+// -------------------------------------------
+// FIREBASE CONFIG
+// -------------------------------------------
+const firebaseConfig = {
+  apiKey: "AIzaSyDJDVZazGiEUshVicJX8ObvxIjDPgA5rTo",
+  authDomain: "studentstatista.firebaseapp.com",
+  databaseURL: "https://studentstatista-default-rtdb.firebaseio.com/",
+  projectId: "studentstatista",
+  storageBucket: "studentstatista.firebasestorage.app",
+  messagingSenderId: "584243573578",
+  appId: "1:584243573578:web:59541448a4a8afedf7c7b3"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// -------------------------------------------
+// GROUPS + STUDENTS
+// -------------------------------------------
 const groups = {
-  "GROUP IELTS M/W/F 9:00": [
-    "HOSHIMOVA NILUFAR","JURAYEVA AZIZA","MAHMUDOV SUNNAT","MUHIDDINOVA MAHBUBA","NORBOYEV SHOHJAXON","OCHILOV LOCHINBEK","ORALOVA SHOHINUR","RAVSHANOVA ZAYNAB","TOSHPULATOV ABBOS"
-  ],
-  "GROUP IELTS 17:00 MWF": [
-    "ABDURAHIMOVA ZILOLA","ALIMOV BEHRUZ","ANVAROVA RUXSHONA","ASADOV SARDOR","BAXRONOVA FAYRUZA","GAFURJONOV ULUGBEK","ISMOILOV ISMOIL","JULIBOYEVA ZEBO","KOZIMJONOVA DURDONA","QIZIMELIKUZIYEVA RUXSHONA","NIGMATOV ABDURAHIM","RAHMATULLAYEV BEXRUZ","TALABOV SAUD","XISLATULLAYEV JAVOXIR","XODJAYEVA LAZIZA","YORMATOV MIRABROR"
-  ],
-  "GROUP IELTS T/T/S 9:00": ["SAIDUSMONOVA MADINA","SOBIROVA MARJONA","TILLAYEV OYBEK","TOSHTEMIROVA MUBORAK","UMAROVA MOXIGUL"],
-  "GROUP IELTS 10:30 TTS": ["ADXAMOVA MUBINA","BAXTIYOROVA NILUFAR","ISAMATOVA LAYLO","NOSIROVA LAZIZA","QILICHOVA GULISTON"],
-  "GROUP IELTS T/T/S 14:00": ["ABDUAZIZOVA HABIBA","ABDUJABBOROVA LOLA","ABDUVALIYEVA OMINA","ALISHEROV NURMUHAMMAD","DJURAYEVA NURGUL","ISLOMBEKOVA EZOZA","ISMAILOVA EZOZA","JORABEKOV AFZALBEK","MAHMUDJONOV FAYZULLOH","MIRAHMEDOVA MUSLIMA","OLIMJONOVA DILNURA","TOJIBOYEV MUXAMMAD","UROLOV SIROJ","XUDOYBERDIYEV QOSIMBEK"],
-  "GROUP IELTS 15:30 TTS": ["ABUBAKIROVA RAHIMA","IMANKULOVA CHAROS","ISLOMXOJAYEV YUNUS","KAYUMKHAJAYEVA JASMINA","MAVLONBEKOV NURMUHAMMAD","MIRAXMEDOVA ROBIYA","MIRSAIDOVA MALIKA","MIRSODIQOV MIRABROR","QODIROV ABDUVALI","QOSIMOVA NARGIZA","RAVSHANOVA MUSLIMA","SHARAXMEDOVA KAMILA","SHERALIYEV ELSHOD","TOGAYEVA SHAXINA","UMARXONOVA JAVOHIRPOSHSHA","YOLDASHEVA FARZONA","ZOIRXOJAYEVA ROBIYA"]
+"GROUP IELTS M/W/F 9:00": [
+"HOSHIMOVA NILUFAR","JURAYEVA AZIZA","MAHMUDOV SUNNAT",
+"MUHIDDINOVA MAHBUBA","NORBOYEV SHOHJAXON","OCHILOV LOCHINBEK",
+"ORALOVA SHOHINUR","RAVSHANOVA ZAYNAB","TOSHPULATOV ABBOS"
+],
+"GROUP IELTS 17:00 MWF": [
+"ABDURAHIMOVA ZILOLA","ALIMOV BEHRUZ","ANVAROVA RUXSHONA","ASADOV SARDOR",
+"BAXRONOVA FAYRUZA","GAFURJONOV ULUGBEK","ISMOILOV ISMOIL","JULIBOYEVA ZEBO",
+"KOZIMJONOVA DURDONA","QIZIMELIKUZIYEVA RUXSHONA","NIGMATOV ABDURAHIM",
+"RAHMATULLAYEV BEXRUZ","TALABOV SAUD","XISLATULLAYEV JAVOXIR",
+"XODJAYEVA LAZIZA","YORMATOV MIRABROR"
+],
+"GROUP IELTS T/T/S 9:00": [
+"SAIDUSMONOVA MADINA","SOBIROVA MARJONA","TILLAYEV OYBEK",
+"TOSHTEMIROVA MUBORAK","UMAROVA MOXIGUL"
+],
+"GROUP IELTS 10:30 TTS": [
+"ADXAMOVA MUBINA","BAXTIYOROVA NILUFAR","ISAMATOVA LAYLO",
+"NASIROVA LAZIZA","QILICHOVA GULISTON"
+],
+"GROUP IELTS T/T/S 14:00": [
+"ABDUAZIZOVA HABIBA","ABDUJABBOROVA LOLA","ABDUVALIYEVA OMINA",
+"ALISHEROV NURMUHAMMAD","DJURAYEVA NURGUL","ISLOMBEKOVA EZOZA",
+"ISMAILOVA EZOZA","JORABEKOV AFZALBEK","MAHMUDJONOV FAYZULLOH",
+"MIRAHMEDOVA MUSLIMA","OLIMJONOVA DILNURA","TOJIBOYEV MUXAMMAD",
+"UROLOV SIROJ","XUDOYBERDIYEV QOSIMBEK"
+],
+"GROUP IELTS 15:30 TTS":[
+"ABUBAKIROVA RAHIMA","IMANKULOVA CHAROS","ISLOMXOJAYEV YUNUS",
+"KAYUMKHAJAYEVA JASMINA","MAVLONBEKOV NURMUHAMMAD",
+"MIRAXMEDOVA ROBIYA","MIRSAIDOVA MALIKA","MIRSODIQOV MIRABROR",
+"QODIROV ABDUVALI","QOSIMOVA NARGIZA","RAVSHANOVA MUSLIMA",
+"SHARAXMEDOVA KAMILA","SHERALIYEV ELSHOD","TOGAYEVA SHAXINA",
+"UMARXONOVA JAVOHIRPOSHSHA","YOLDASHEVA FARZONA","ZOIRXOJAYEVA ROBIYA"
+]
 };
 
-const tasks = ["Задание 1","Задание 2","Задание 3"];
+// -------------------------------------------
+// TASK LIST
+// -------------------------------------------
+const tasks = [
+"Dictation","Reading Test Bank","Podcast","Writing task 1","Writing task 2",
+"Speaking Part 1","Speaking Part 2","Speaking Part 3","Listening Strategies",
+"Listening Practice","Reading Practice","Listening Made easy","Cambridge Listening",
+"Cambridge Reading","Cambridge Writing","TED Podcasts","Vocab for IELTS Book"
+];
 
-// Simple local credentials for teacher/assistant (you can replace later with Firebase Auth)
-let role = null;
-const users = {
-  teacher: { login: 'teacher1', password: 'Teach@123' },
-  assistant: { login: 'assistant1', password: 'Assist@123' }
-};
-
-const app = document.getElementById('app');
+// -------------------------------------------
+// APP STATE
+// -------------------------------------------
 let currentGroup = null;
 let currentStudent = null;
-let adminUnsubscribe = null;
+let currentRole = null; // 'teacher','assistant','student'
 
-// Start screen
-function showLogin(){
-  if(adminUnsubscribe){ adminUnsubscribe(); adminUnsubscribe = null; }
-  app.innerHTML = `<div class="card">
-    <div class="note">Войдите как учитель/ассистент или нажмите «Войти как ученик» (ученический интерфейс без пароля).</div>
-    <input type="text" id="loginInput" placeholder="Логин" style="width:100%;margin-top:6px;padding:8px"/><br>
-    <input type="password" id="passInput" placeholder="Пароль" style="width:100%;margin-top:6px;padding:8px"/><br>
-    <div style="margin-top:8px;">
-      <button onclick="checkLogin()">Войти</button>
-      <button class="secondary" onclick="renderGroups()" style="margin-left:10px">Войти как ученик</button>
-    </div>
-  </div>`;
+// -------------------------------------------
+// RENDER LOGIN
+// -------------------------------------------
+function renderLogin(){
+    app.innerHTML = "";
+    const c = document.createElement("div");
+    c.className="card";
+    c.innerHTML=`
+        <h3>Login</h3>
+        <input id="loginUser" placeholder="Username" style="width:100%;padding:8px;margin-bottom:8px;">
+        <input id="loginPass" placeholder="Password" type="password" style="width:100%;padding:8px;margin-bottom:8px;">
+        <button onclick="doLogin()">Login</button>
+    `;
+    app.appendChild(c);
+}
+function doLogin(){
+    const u = document.getElementById("loginUser").value;
+    const p = document.getElementById("loginPass").value;
+
+    if(u==="Teacher1" && p==="Admin1"){
+        currentRole="teacher";
+        renderAdmin();
+        return;
+    }
+    if(u==="Assistant1" && p==="Admin2"){
+        currentRole="assistant";
+        renderAdmin();
+        return;
+    }
+    alert("Invalid credentials.");
 }
 
-function checkLogin(){
-  const l = document.getElementById('loginInput').value.trim();
-  const p = document.getElementById('passInput').value;
-  if(l === users.teacher.login && p === users.teacher.password){ role='teacher'; renderAdmin(); }
-  else if(l === users.assistant.login && p === users.assistant.password){ role='assistant'; renderAdmin(); }
-  else { alert('Неверный логин или пароль'); }
-}
-
-// Student view: choose group
+// -------------------------------------------
+// STUDENT INTERFACE
+// -------------------------------------------
 function renderGroups(){
-  if(adminUnsubscribe){ adminUnsubscribe(); adminUnsubscribe = null; }
-  app.innerHTML = `<h2>Список групп</h2>`;
-  Object.keys(groups).forEach(g=>{
-    const c = document.createElement('div'); c.className='card';
-    c.innerHTML = `<div class="student-line"><strong>${g}</strong><div><button onclick="selectGroup('${g.replace(/'/g,"\\'")}')">Открыть</button></div></div>`;
-    app.appendChild(c);
-  });
-  app.innerHTML += `<div style="margin-top:10px"><button class="back" onclick="showLogin()">Назад</button></div>`;
+    app.innerHTML = `<h3>Select your group</h3>`;
+    Object.keys(groups).forEach(g=>{
+        const d=document.createElement("div");
+        d.className="card";
+        d.innerHTML=`<b>${g}</b><br><button onclick="selectGroup('${g}')">Open</button>`;
+        app.appendChild(d);
+    });
+}
+function selectGroup(g){
+    currentGroup=g;
+    app.innerHTML = `<button class='back-btn' onclick='renderGroups()'>Back</button>
+    <h3>Select your name</h3>`;
+
+    groups[g].forEach(s=>{
+        const d=document.createElement("div");
+        d.className="card";
+        d.innerHTML=`${s}<br><button onclick="selectStudent('${s}')">Open</button>`;
+        app.appendChild(d);
+    });
+}
+function selectStudent(s){
+    currentStudent=s;
+    renderStudentTasks();
 }
 
-function selectGroup(g){ currentGroup = g; renderStudents(); }
+async function renderStudentTasks(){
+    app.innerHTML =
+    `<button class='back-btn' onclick='selectGroup("${currentGroup}")'>Back</button>
+     <h3>${currentStudent}</h3>
+     <h4>Your tasks</h4>`;
 
-function renderStudents(){
-  app.innerHTML = `<h2>${currentGroup}</h2>`;
-  window.firebaseHelpers.loadDB_firebase().then(db=>{
-    groups[currentGroup].forEach(s=>{
-      const submittedCount = db[currentGroup] && db[currentGroup][s] ? Object.keys(db[currentGroup][s]).length : 0;
-      const c = document.createElement('div'); c.className='card';
-      c.innerHTML = `<div class="student-line"><div><strong>${s}</strong><div class="small">Отправлено: ${submittedCount}/${tasks.length}</div></div><div><button onclick="selectStudent('${s.replace(/'/g,"\\'")}')">Выбрать</button></div></div>`;
-      app.appendChild(c);
-    });
-    app.innerHTML += `<div style="margin-top:10px"><button class="back" onclick="renderGroups()">Назад</button></div>`;
-  }).catch(e=>{
-    // fallback UI if firebase fails
-    groups[currentGroup].forEach(s=>{
-      const c = document.createElement('div'); c.className='card';
-      c.innerHTML = `<div class="student-line"><div><strong>${s}</strong><div class="small">Отправлено: 0/${tasks.length}</div></div><div><button onclick="selectStudent('${s.replace(/'/g,"\\'")}')">Выбрать</button></div></div>`;
-      app.appendChild(c);
-    });
-    app.innerHTML += `<div style="margin-top:10px"><button class="back" onclick="renderGroups()">Назад</button></div>`;
-  });
-}
+    const snap = await db.ref("submissions/"+currentGroup+"/"+currentStudent).get();
+    const submitted = snap.exists() ? snap.val() : {};
 
-function selectStudent(s){ currentStudent = s; renderTasks(); }
-
-function renderTasks(){
-  app.innerHTML = `<h2>${currentStudent} — ${currentGroup}</h2>`;
-  window.firebaseHelpers.loadDB_firebase().then(db=>{
-    const studentData = db[currentGroup] && db[currentGroup][currentStudent] ? db[currentGroup][currentStudent] : {};
     tasks.forEach(t=>{
-      const done = !!studentData[t];
-      const div = document.createElement('div');
-      div.className = 'task ' + (done ? 'done' : 'pending');
-      div.innerHTML = `<div>${t}</div><div>` + (done ? `<button onclick="viewSubmission('${t.replace(/'/g, "\\'")}')">Посмотреть</button>` : `<button onclick="uploadTask('${t.replace(/'/g, "\\'")}')">Отправить</button>`) + `</div>`;
-      app.appendChild(div);
+        const row=document.createElement("div");
+        row.className="task-row " + (submitted[t] ? "green":"red");
+        row.innerHTML = `
+            <span>${t}</span>
+            <button onclick="uploadTask('${t}')">Submit</button>
+        `;
+        app.appendChild(row);
     });
-    app.innerHTML += `<div style="margin-top:10px"><button class="back" onclick="renderStudents()">Назад</button></div>`;
-  }).catch(e=>{
-    // fallback: show upload buttons
-    tasks.forEach(t=>{
-      const div = document.createElement('div'); div.className='task pending';
-      div.innerHTML = `<div>${t}</div><div><button onclick="uploadTask('${t.replace(/'/g, "\\'")}')">Отправить</button></div>`;
-      app.appendChild(div);
-    });
-    app.innerHTML += `<div style="margin-top:10px"><button class="back" onclick="renderStudents()">Назад</button></div>`;
-  });
 }
 
-// Diagnostic uploadTask (progress + timeout + error handling)
+// -------------------------------------------
+// UPLOADCARE DIRECT UPLOAD
+// -------------------------------------------
 function uploadTask(taskName){
-  // create progress UI
-  const progressCard = document.createElement('div'); progressCard.className='card';
-  const fillId = 'pf_' + Date.now();
-  const cancelId = 'pc_' + Date.now();
-  progressCard.innerHTML = `<div style="font-weight:700">Загрузка — ${taskName}</div>
-    <div class="progressBar"><div class="progressFill" id="${fillId}"></div></div>
-    <div style="margin-top:8px"><button id="${cancelId}" class="secondary">Отмена</button></div>`;
-  app.appendChild(progressCard);
-
-  // timeout
-  const TIMEOUT_MS = 2*60*1000;
-  const timeoutId = setTimeout(()=>{
-    try{ app.removeChild(progressCard); }catch(e){}
-    alert('Загрузка превысила лимит времени. Попробуйте снова или уменьшите файл.');
-  }, TIMEOUT_MS);
-
-  const input = document.createElement('input'); input.type='file'; input.accept='image/*';
-  input.onchange = async () => {
-    const file = input.files[0];
-    if(!file){ clearTimeout(timeoutId); try{ app.removeChild(progressCard);}catch(e){}; return; }
-    if(file.size > 40 * 1024 * 1024){ // 40MB hard limit
-      clearTimeout(timeoutId); try{ app.removeChild(progressCard);}catch(e){}; alert('Файл слишком большой (>40MB). Уменьшите размер.'); return;
-    }
-    const fill = document.getElementById(fillId);
-    try{
-      const res = await window.firebaseHelpers.persistFileSubmission(currentGroup, currentStudent, taskName, file, pct=>{
-        if(fill) fill.style.width = pct + '%';
-      });
-      clearTimeout(timeoutId);
-      if(res && res.ok){
-        alert('Файл успешно загружен.');
-      } else if(res && res.fallback){
-        alert('Файл сохранён локально (fallback). Firebase недоступен.');
-      } else {
-        alert('Ошибка при загрузке (см. консоль).');
-        console.error('persist result', res);
-      }
-    }catch(err){
-      clearTimeout(timeoutId);
-      console.error('upload exception', err);
-      alert('Ошибка при загрузке. Смотрите консоль.');
-    }finally{
-      try{ app.removeChild(progressCard); }catch(e){}
-      try{ renderTasks(); }catch(e){}
-    }
-  };
-  document.addEventListener('click', function onCancel(e){
-    if(e.target && e.target.id === cancelId){
-      clearTimeout(timeoutId); try{ app.removeChild(progressCard);}catch(e){}; alert('Загрузка отменена'); document.removeEventListener('click', onCancel);
-    }
-  });
-  input.click();
+    const input=document.createElement("input");
+    input.type="file";
+    input.accept="image/*";
+    input.onchange=()=>handleUpload(input.files[0],taskName);
+    input.click();
 }
 
-function viewSubmission(taskName){
-  window.firebaseHelpers.readSubmission(currentGroup, currentStudent, taskName).then(rec=>{
-    if(!rec){ alert('Нет отправки'); return; }
-    const src = rec.url || rec.data || '';
-    const w = window.open('');
-    w.document.write(`<h3>${currentStudent} — ${taskName}</h3><p>Время: ${rec.time ? new Date(rec.time).toLocaleString() : '—'}</p>`);
-    if(src) w.document.write(`<img src="${src}" style="max-width:100%;height:auto;border:1px solid #ccc;padding:8px;border-radius:6px;"/>`);
-    else w.document.write('<p>Нет доступного файла.</p>');
-  });
+async function handleUpload(file,taskName){
+    if(!file) return;
+
+    const form = new FormData();
+    form.append("UPLOADCARE_PUB_KEY","452dd8e20a2e77457998");
+    form.append("UPLOADCARE_STORE","auto");
+    form.append("file",file);
+
+    const res = await fetch("https://upload.uploadcare.com/base/",{
+        method:"POST", body:form
+    });
+
+    const data = await res.json();
+    if(data.file){
+        const url = "https://ucarecdn.com/"+data.file+"/";
+        await db.ref("submissions/"+currentGroup+"/"+currentStudent+"/"+taskName)
+               .set({url:url, time:Date.now()});
+        alert("Uploaded!");
+        renderStudentTasks();
+    } else {
+        alert("Upload failed.");
+    }
 }
 
-/* --------------- Admin (teacher/assistant) --------------- */
-
+// -------------------------------------------
+// ADMIN PANEL
+// -------------------------------------------
 function renderAdmin(){
-  if(adminUnsubscribe){ adminUnsubscribe(); adminUnsubscribe = null; }
-  app.innerHTML = `<h2>${role === 'teacher' ? 'Панель учителя' : 'Панель ассистента'}</h2>`;
-  const controlsDiv = document.createElement('div'); controlsDiv.className='controls';
-  controlsDiv.innerHTML = `<button onclick="renderAdmin()">Обновить</button>
-    <button onclick="clearAllConfirm()" class="danger" style="margin-left:8px;">Очистить всё (только учитель)</button>
-    <div class="small" style="margin-top:8px;">Данные синхронизируются через Firebase Storage + Realtime DB.</div>`;
-  app.appendChild(controlsDiv);
+    app.innerHTML=`<h3>${currentRole==="teacher"?"Teacher Panel":"Assistant Panel"}</h3>`;
+    Object.keys(groups).forEach(g=>{
+        const c=document.createElement("div");
+        c.className="card";
 
-  // subscribe and draw on changes
-  adminUnsubscribe = window.firebaseHelpers.subscribeToSubmissions(db => {
-    drawAdminFromDB(db);
-  });
-}
-
-// Draw admin UI from db object
-function drawAdminFromDB(db){
-  app.innerHTML = `<h2>${role === 'teacher' ? 'Панель учителя' : 'Панель ассистента'}</h2>`;
-  const controlsDiv = document.createElement('div'); controlsDiv.className='controls';
-  controlsDiv.innerHTML = `<button onclick="renderAdmin()">Обновить</button>
-    <button onclick="clearAllConfirm()" class="danger" style="margin-left:8px;">Очистить всё (только учитель)</button>
-    <div class="small" style="margin-top:8px;">Данные синхронизируются через Firebase Storage + Realtime DB.</div>`;
-  app.appendChild(controlsDiv);
-
-  Object.keys(groups).forEach(g=>{
-    const card = document.createElement('div'); card.className='card';
-    card.innerHTML = `<strong>${g}</strong>`;
-    const groupControls = document.createElement('div'); groupControls.style.marginTop = '6px';
-    groupControls.innerHTML = `<button onclick="downloadGroupReport('${g.replace(/'/g,"\\'")}')">Скачать отчёт (JSON)</button>
-      <button onclick="downloadGroupCSV('${g.replace(/'/g,"\\'")}')" style="margin-left:8px">Скачать отчёт (CSV)</button>
-      <button onclick="clearGroupConfirm('${g.replace(/'/g,"\\'")}')" style="margin-left:8px;background:#e65100">Очистить отправки группы</button>`;
-    card.appendChild(groupControls);
-
-    (groups[g] || []).forEach(s=>{
-      const studentData = db[g] && db[g][s] ? db[g][s] : {};
-      const submitted = Object.keys(studentData).length;
-      const line = document.createElement('div');
-      line.style.marginTop='6px';
-      line.style.display='flex';
-      line.style.justifyContent='space-between';
-      line.style.alignItems='center';
-      line.innerHTML = `<div><span>${s}</span><div class='small'>${submitted}/${tasks.length} отправлено</div></div>`;
-      const right = document.createElement('div');
-      const openBtn = document.createElement('button'); openBtn.textContent='Открыть'; openBtn.onclick = ()=> adminViewStudent(g,s);
-      const clearBtn = document.createElement('button'); clearBtn.textContent='Очистить отправки студента'; clearBtn.style.marginLeft='8px'; clearBtn.style.background='#b71c1c';
-      clearBtn.onclick = ()=> clearStudentConfirm(g,s);
-      right.appendChild(openBtn); right.appendChild(clearBtn);
-      line.appendChild(right);
-      card.appendChild(line);
+        c.innerHTML=`<b>${g}</b><br>
+            <button onclick="openGroupAdmin('${g}')">Open</button>
+            <button onclick="downloadGroupCSV('${g}')" class='secondary'>Export</button>
+            ${currentRole==="teacher" ? `<button onclick="clearGroup('${g}')" class="danger">Clear group</button>` : ""}
+        `;
+        app.appendChild(c);
     });
-
-    app.appendChild(card);
-  });
-
-  // history & calendar buttons
-  const historyBtn = document.createElement('button'); historyBtn.textContent='История отправок'; historyBtn.style.marginTop='8px'; historyBtn.onclick = renderHistory;
-  app.appendChild(historyBtn);
-  const calendarBtn = document.createElement('button'); calendarBtn.textContent='Календарь'; calendarBtn.style.marginLeft='8px'; calendarBtn.onclick = renderCalendar;
-  app.appendChild(calendarBtn);
 }
 
-function adminViewStudent(group, student){
-  currentGroup = group; currentStudent = student;
-  app.innerHTML = `<h2>${student} — ${group} (просмотр)</h2>`;
-  window.firebaseHelpers.loadDB_firebase().then(db=>{
-    const studentData = db[group] && db[group][student] ? db[group][student] : {};
+async function openGroupAdmin(g){
+    currentGroup=g;
+    app.innerHTML =
+    `<button class='back-btn' onclick='renderAdmin()'>Back</button>
+     <h3>${g}</h3>`;
+
+    const snap = await db.ref("submissions/"+g).get();
+    const data = snap.exists() ? snap.val() : {};
+
+    groups[g].forEach(s=>{
+        const count = data[s] ? Object.keys(data[s]).length : 0;
+        const row=document.createElement("div");
+        row.className="student-row";
+        row.innerHTML=`
+            <div><b>${s}</b><br><small>${count} submitted</small></div>
+            <button onclick="viewStudent('${s}')">Open</button>
+        `;
+        app.appendChild(row);
+    });
+}
+
+async function viewStudent(s){
+    currentStudent=s;
+    app.innerHTML =
+    `<button class='back-btn' onclick='openGroupAdmin("${currentGroup}")'>Back</button>
+     <h3>${s}</h3>`;
+
+    const snap = await db.ref("submissions/"+currentGroup+"/"+s).get();
+    const data = snap.exists() ? snap.val() : {};
+
     tasks.forEach(t=>{
-      const done = !!studentData[t];
-      const div = document.createElement('div'); div.className = 'task ' + (done ? 'done' : 'pending');
-      div.innerHTML = `<div>${t}</div><div>` + (done ? `<button onclick="adminOpenSubmission('${group.replace(/'/g,"\\'")}','${student.replace(/'/g,"\\'")}','${t.replace(/'/g,"\\'")}')">Посмотреть</button>` : `— не сдано`) + `</div>`;
-      app.appendChild(div);
+        const row=document.createElement("div");
+        row.className="task-row";
+        if(data[t]) row.classList.add("green"); else row.classList.add("red");
+        row.innerHTML = `
+           <span>${t}</span>
+           ${data[t] ? `<button onclick="window.open('${data[t].url}','_blank')">View</button>` : ""}
+           ${currentRole==="teacher" ? `<button class='danger' onclick="clearTask('${t}')">Delete</button>` : ""}
+        `;
+        app.appendChild(row);
     });
-    app.innerHTML += `<div style="margin-top:10px"><button class="back" onclick="renderAdmin()">Назад</button></div>`;
-  });
 }
 
-function adminOpenSubmission(group, student, task){
-  window.firebaseHelpers.readSubmission(group, student, task).then(rec=>{
-    if(!rec){ alert('Нет отправки'); return; }
-    const src = rec.url || rec.data || '';
-    const w = window.open('');
-    w.document.write(`<h3>${student} — ${task}</h3><p>Группа: ${group}</p><p>Время: ${rec.time ? new Date(rec.time).toLocaleString() : '—'}</p>`);
-    if(src) w.document.write(`<img src="${src}" style="max-width:100%;height:auto;border:1px solid #ccc;padding:8px;border-radius:6px;"/>`);
-    else w.document.write('<p>Нет доступного файла.</p>');
-  });
+function clearTask(task){
+    db.ref("submissions/"+currentGroup+"/"+currentStudent+"/"+task).remove();
+    viewStudent(currentStudent);
 }
 
-/* ========== Export / Download helpers ========== */
-async function downloadGroupReport(group){
-  const db = await window.firebaseHelpers.loadDB_firebase();
-  const groupData = db[group] || {};
-  const txt = JSON.stringify(groupData, null, 2);
-  const blob = new Blob([txt], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = `${group.replace(/[^a-z0-9]/gi,'_')}_report.json`; a.click(); URL.revokeObjectURL(url);
+function clearGroup(g){
+    if(confirm("Clear all submissions in this group?")){
+        db.ref("submissions/"+g).remove();
+        alert("Cleared.");
+        renderAdmin();
+    }
 }
 
-async function downloadGroupCSV(group){
-  const db = await window.firebaseHelpers.loadDB_firebase();
-  const groupData = db[group] || {};
-  let rows = [['student','task','submitted','time']];
-  (groups[group] || []).forEach(student => {
-    const studentData = groupData[student] || {};
-    tasks.forEach(task => {
-      const rec = studentData[task];
-      if(rec){ rows.push([`"${student}"`,`"${task}"`,'yes', rec.time]); }
-      else { rows.push([`"${student}"`,`"${task}"`,'no','']); }
-    });
-  });
-  const csv = rows.map(r=>r.join(',')).join('\n');
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = `${group.replace(/[^a-z0-9]/gi,'_')}_report.csv`; a.click(); URL.revokeObjectURL(url);
-}
+function downloadGroupCSV(g){
+    const ref=db.ref("submissions/"+g);
+    ref.get().then(snap=>{
+        const data=snap.exists()?snap.val():{};
+        let csv="Student,Task,URL,Time\n";
 
-/* ========== History & Calendar ========== */
-async function renderHistory(){
-  const db = await window.firebaseHelpers.loadDB_firebase();
-  app.innerHTML = `<h2>История отправок</h2>`;
-  Object.keys(db).forEach(g=>{
-    const c = document.createElement('div'); c.className='card';
-    c.innerHTML = `<strong>${g}</strong>`;
-    Object.keys(db[g]).forEach(s=>{
-      c.innerHTML += `<div style='margin-top:6px;'><em>${s}</em></div>`;
-      Object.keys(db[g][s]).forEach(t=>{
-        const rec = db[g][s][t];
-        c.innerHTML += `<div style='margin-left:10px;'>- ${t} — ${new Date(rec.time).toLocaleString()} <button onclick="adminOpenSubmission('${g.replace(/'/g,"\\'")}','${s.replace(/'/g,"\\'")}','${t.replace(/'/g,"\\'")}')">Посмотреть</button></div>`;
-      });
-    });
-    app.appendChild(c);
-  });
-  app.innerHTML += `<div style="margin-top:10px"><button class="back" onclick="renderAdmin()">Назад</button></div>`;
-}
-
-function renderCalendar(){
-  app.innerHTML = `<h2>Календарь</h2>`;
-  const inp = document.createElement('input'); inp.type = 'date';
-  inp.onchange = async ()=>{
-    const dateStr = inp.value; const db = await window.firebaseHelpers.loadDB_firebase();
-    app.innerHTML = `<h2>Календарь — ${dateStr}</h2>`;
-    Object.keys(db).forEach(g=>{
-      const c = document.createElement('div'); c.className='card'; c.innerHTML = `<strong>${g}</strong>`;
-      Object.keys(db[g]).forEach(s=>{
-        Object.keys(db[g][s]).forEach(t=>{
-          const rec = db[g][s][t];
-          if(rec.time && rec.time.slice(0,10) === dateStr){
-            c.innerHTML += `<div style='margin-top:6px;'>${s} — ${t} — ${new Date(rec.time).toLocaleTimeString()} <button onclick="adminOpenSubmission('${g.replace(/'/g,"\\'")}','${s.replace(/'/g,"\\'")}','${t.replace(/'/g,"\\'")}')">Посмотреть</button></div>`;
-          }
+        Object.keys(data).forEach(st=>{
+            Object.keys(data[st]).forEach(task=>{
+                csv+=`${st},${task},${data[st][task].url},${data[st][task].time}\n`;
+            });
         });
-      });
-      app.appendChild(c);
+
+        const blob=new Blob([csv],{type:"text/csv"});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement("a");
+        a.href=url;
+        a.download=g+".csv";
+        a.click();
+        URL.revokeObjectURL(url);
     });
-    app.innerHTML += `<div style="margin-top:10px"><button class="back" onclick="renderAdmin()">Назад</button></div>`;
-  };
-  app.appendChild(inp);
-  app.appendChild(document.createElement('br'));
-  app.innerHTML += `<div style="margin-top:10px"><button class="back" onclick="renderAdmin()">Назад</button></div>`;
 }
 
-/* ========== Clear / Delete operations ========== */
-async function clearStudentConfirm(group, student){
-  if(role === 'assistant'){
-    if(!confirm(`Ассистент: действительно очистить отправки студента ${student} из группы ${group}?`)) return;
-  } else {
-    if(!confirm(`Очистить отправки студента ${student} из группы ${group}?`)) return;
-  }
-  try{
-    await rdb.ref(`submissions/${encodeKey(group)}/${encodeKey(student)}`).remove();
-    alert('Отправки студента удалены');
-    renderAdmin();
-  }catch(e){ console.error(e); alert('Ошибка удаления'); }
-}
-
-async function clearGroupConfirm(group){
-  if(role === 'assistant'){
-    if(!confirm(`Ассистент: действительно очистить все отправки в группе ${group}?`)) return;
-  } else {
-    if(!confirm(`Очистить все отправки в группе ${group}?`)) return;
-  }
-  try{
-    await rdb.ref(`submissions/${encodeKey(group)}`).remove();
-    alert('Отправки группы удалены');
-    renderAdmin();
-  }catch(e){ console.error(e); alert('Ошибка удаления'); }
-}
-
-async function clearAllConfirm(){
-  if(role !== 'teacher'){ alert('Только учитель может полностью очистить всё.'); return; }
-  if(!confirm('Очистить все отправки везде?')) return;
-  try{
-    await rdb.ref('submissions').remove();
-    alert('Все отправки удалены');
-    renderAdmin();
-  }catch(e){ console.error(e); alert('Ошибка удаления'); }
-}
-
-/* ========== Initialization: show login ========== */
-showLogin();
+// -------------------------------------------
+// START
+// -------------------------------------------
+renderLogin();
 
 </script>
 </body>
