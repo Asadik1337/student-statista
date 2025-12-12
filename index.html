@@ -216,9 +216,52 @@ function studentTasks(group,student){
  app.innerHTML=html;
 }
 
-function submitTask(g,s,t){
- db.ref(`submissions/${g}/${s}/${t}`).set(true);
- alert("Submitted");
+function submitTask(group, student, task) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*,.pdf";
+
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) {
+      alert("File is required");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    // ImgBB (самый простой и стабильный вариант)
+    const API_KEY = "ТВОЙ_IMGBB_API_KEY";
+
+    try {
+      const res = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY}`, {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+
+      if (!data.success) throw new Error("Upload failed");
+
+      const fileUrl = data.data.url;
+
+      await firebase.database()
+        .ref(`submissions/${group}/${student}/${task}`)
+        .set({
+          submitted: true,
+          fileUrl: fileUrl,
+          time: Date.now()
+        });
+
+      alert("Submitted with file ✔");
+
+    } catch (e) {
+      alert("Upload failed. Try again.");
+    }
+  };
+
+  input.click();
 }
 
 /* ================= CSV ================= */
@@ -246,3 +289,4 @@ home();
 </script>
 </body>
 </html>
+
