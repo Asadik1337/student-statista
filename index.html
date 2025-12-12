@@ -1,73 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
 <title>Student Statista</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<!-- Uploadcare Direct Upload -->
+<script>
+  UPLOADCARE_PUBLIC_KEY = "452dd8e20a2e77457998";
+  UPLOADCARE_LOCALE = "en";
+  UPLOADCARE_AUTOSTORE = true;
+</script>
+<script src="https://ucarecdn.com/libs/widget/3.x/uploadcare.full.min.js"></script>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
 <style>
-    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f2f2f2; }
-    header { background:#1e88e5; padding:15px; color:white; font-size:20px; font-weight:700; text-align:center; }
-    #app { padding:15px; }
-    .card {
-        background:white; padding:15px; border-radius:10px; margin-bottom:15px;
-        box-shadow:0 2px 6px rgba(0,0,0,0.12);
-    }
-    button {
-        padding:8px 14px; font-size:14px; border:none; border-radius:5px;
-        background:#1e88e5; color:white; cursor:pointer;
-    }
-    button.secondary { background:#777; }
-    button.danger { background:#d32f2f; }
-    .task-row {
-        display:flex; justify-content:space-between; align-items:center;
-        margin:8px 0; padding:8px; background:#f7f7f7; border-radius:6px;
-    }
-    .green { background:#c8e6c9 !important; }
-    .red { background:#ffcdd2 !important; }
-    .student-row {
-        display:flex; justify-content:space-between; align-items:center;
-        padding:6px; background:#f1f1f1; border-radius:5px; margin-top:6px;
-    }
-    .back-btn {
-        background:#555; margin-bottom:10px;
-    }
+body {
+  margin:0; font-family:Arial, sans-serif;
+  background:#f4f4f4;
+}
+.header {
+  background:#0b7dda; color:white; padding:15px;
+  text-align:center; font-size:22px; font-weight:bold;
+}
+.card {
+  background:white; margin:15px; padding:15px;
+  border-radius:10px; box-shadow:0 0 8px rgba(0,0,0,0.1);
+}
+button {
+  background:#0b7dda; color:white; padding:10px 14px;
+  border:none; border-radius:6px; cursor:pointer; font-size:15px;
+}
+button.secondary {
+  background:#777;
+}
+button.danger {
+  background:#d63434;
+}
+button.back-btn {
+  background:#555;
+  margin-bottom:10px;
+}
+.group-btn, .student-btn {
+  display:block; width:100%; text-align:left;
+  padding:12px; margin:5px 0; border-radius:8px;
+  background:white; border:1px solid #ccc; cursor:pointer;
+}
+.task-row {
+  display:flex; justify-content:space-between;
+  background:white; margin:8px 0; padding:10px;
+  border-radius:8px; border:1px solid #ccc;
+}
+.green { background:#d6ffd6; }
+.red { background:#ffd6d6; }
 </style>
 </head>
 
 <body>
-<header>Student Statista</header>
+
+<div class="header">Student Statista</div>
 <div id="app"></div>
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-
-<!-- Uploadcare (Direct Upload API requires no widget scripts, only this polyfill) -->
 <script>
-window.UPLOADCARE_PUBLIC_KEY = "452dd8e20a2e77457998";
-</script>
-
-<script>
-
-// -------------------------------------------
-// FIREBASE CONFIG
-// -------------------------------------------
+/* ==========================
+   FIREBASE INIT
+========================== */
 const firebaseConfig = {
   apiKey: "AIzaSyDJDVZazGiEUshVicJX8ObvxIjDPgA5rTo",
   authDomain: "studentstatista.firebaseapp.com",
-  databaseURL: "https://studentstatista-default-rtdb.firebaseio.com/",
   projectId: "studentstatista",
+  databaseURL: "https://studentstatista-default-rtdb.firebaseio.com/",
   storageBucket: "studentstatista.firebasestorage.app",
   messagingSenderId: "584243573578",
-  appId: "1:584243573578:web:59541448a4a8afedf7c7b3"
+  appId: "1:584243573578:web:59541448a4a8afedf7c7b3",
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// -------------------------------------------
-// GROUPS + STUDENTS
-// -------------------------------------------
+/* ==========================
+   GLOBAL STATE
+========================== */
+let currentRole = "student";
+let currentGroup = null;
+let currentStudent = null;
+
+/* ==========================
+   GROUPS & STUDENTS
+========================== */
 const groups = {
 "GROUP IELTS M/W/F 9:00": [
 "HOSHIMOVA NILUFAR","JURAYEVA AZIZA","MAHMUDOV SUNNAT",
@@ -96,7 +118,7 @@ const groups = {
 "MIRAHMEDOVA MUSLIMA","OLIMJONOVA DILNURA","TOJIBOYEV MUXAMMAD",
 "UROLOV SIROJ","XUDOYBERDIYEV QOSIMBEK"
 ],
-"GROUP IELTS 15:30 TTS":[
+"GROUP IELTS 15:30 TTS": [
 "ABUBAKIROVA RAHIMA","IMANKULOVA CHAROS","ISLOMXOJAYEV YUNUS",
 "KAYUMKHAJAYEVA JASMINA","MAVLONBEKOV NURMUHAMMAD",
 "MIRAXMEDOVA ROBIYA","MIRSAIDOVA MALIKA","MIRSODIQOV MIRABROR",
@@ -106,238 +128,298 @@ const groups = {
 ]
 };
 
-// -------------------------------------------
-// TASK LIST
-// -------------------------------------------
+/* ==========================
+   TASK LIST
+========================== */
 const tasks = [
 "Dictation","Reading Test Bank","Podcast","Writing task 1","Writing task 2",
 "Speaking Part 1","Speaking Part 2","Speaking Part 3","Listening Strategies",
-"Listening Practice","Reading Practice","Listening Made easy","Cambridge Listening",
-"Cambridge Reading","Cambridge Writing","TED Podcasts","Vocab for IELTS Book"
+"Listening Practice","Reading Practice","Listening Made easy",
+"Cambridge Listening","Cambridge Reading","Cambridge Writing",
+"TED Podcasts","Vocab for IELTS book"
 ];
 
-// -------------------------------------------
-// APP STATE
-// -------------------------------------------
-let currentGroup = null;
-let currentStudent = null;
-let currentRole = null; // 'teacher','assistant','student'
-
-// -------------------------------------------
-// RENDER LOGIN
-// -------------------------------------------
+/* ==========================
+   LOGIN SCREEN
+========================== */
 function renderLogin(){
-    app.innerHTML = "";
-    const c = document.createElement("div");
-    c.className="card";
-    c.innerHTML=`
-        <h3>Login</h3>
-        <input id="loginUser" placeholder="Username" style="width:100%;padding:8px;margin-bottom:8px;">
-        <input id="loginPass" placeholder="Password" type="password" style="width:100%;padding:8px;margin-bottom:8px;">
-        <button onclick="doLogin()">Login</button>
-    `;
-    app.appendChild(c);
+  app.innerHTML = "";
+  const c=document.createElement("div");
+  c.className="card";
+  c.innerHTML=`
+    <h3>Login</h3>
+    <input id="loginUser" placeholder="Username" style="width:100%;padding:10px;margin-bottom:10px"/>
+    <input id="loginPass" placeholder="Password" type="password" style="width:100%;padding:10px;margin-bottom:10px"/>
+
+    <button onclick="doLogin()" style="width:100%;margin-bottom:10px;">Login</button>
+    <button class="secondary" onclick="renderGroups()" style="width:100%;">Login as Student</button>
+
+    <div style="margin-top:10px;font-size:13px;color:#444;">
+      Students do not need a password. Click "Login as Student".
+    </div>
+  `;
+  app.appendChild(c);
 }
+
+/* ==========================
+   DO LOGIN (TEACHER / ASSISTANT)
+========================== */
 function doLogin(){
-    const u = document.getElementById("loginUser").value;
-    const p = document.getElementById("loginPass").value;
+  const u=document.getElementById("loginUser").value.trim();
+  const p=document.getElementById("loginPass").value.trim();
 
-    if(u==="Teacher1" && p==="Admin1"){
-        currentRole="teacher";
-        renderAdmin();
-        return;
-    }
-    if(u==="Assistant1" && p==="Admin2"){
-        currentRole="assistant";
-        renderAdmin();
-        return;
-    }
-    alert("Invalid credentials.");
+  if(u==="Teacher1" && p==="Admin1"){
+    currentRole="teacher";
+    renderAdmin();
+    return;
+  }
+  if(u==="Assistant1" && p==="Admin2"){
+    currentRole="assistant";
+    renderAdmin();
+    return;
+  }
+  alert("Invalid credentials");
 }
 
-// -------------------------------------------
-// STUDENT INTERFACE
-// -------------------------------------------
+/* ==========================
+   RENDER GROUPS (STUDENT MODE)
+========================== */
 function renderGroups(){
-    app.innerHTML = `<h3>Select your group</h3>`;
-    Object.keys(groups).forEach(g=>{
-        const d=document.createElement("div");
-        d.className="card";
-        d.innerHTML=`<b>${g}</b><br><button onclick="selectGroup('${g}')">Open</button>`;
-        app.appendChild(d);
-    });
+  currentRole="student";
+  app.innerHTML = "<h3>Select your group</h3>";
+
+  for(let g in groups){
+    const b=document.createElement("button");
+    b.className="group-btn";
+    b.textContent=g;
+    b.onclick=()=>selectGroup(g);
+    app.appendChild(b);
+  }
 }
+
+/* ==========================
+   SELECT GROUP / STUDENT
+========================== */
 function selectGroup(g){
-    currentGroup=g;
-    app.innerHTML = `<button class='back-btn' onclick='renderGroups()'>Back</button>
-    <h3>Select your name</h3>`;
+  currentGroup=g;
+  app.innerHTML=`<button class='back-btn' onclick='renderGroups()'>Back</button><h3>${g}</h3>`;
 
-    groups[g].forEach(s=>{
-        const d=document.createElement("div");
-        d.className="card";
-        d.innerHTML=`${s}<br><button onclick="selectStudent('${s}')">Open</button>`;
-        app.appendChild(d);
-    });
-}
-function selectStudent(s){
-    currentStudent=s;
-    renderStudentTasks();
+  groups[g].forEach(st=>{
+    const btn=document.createElement("button");
+    btn.className="student-btn";
+    btn.textContent=st;
+    btn.onclick=()=>{ currentStudent=st; renderStudentTasks(); };
+    app.appendChild(btn);
+  });
 }
 
+/* ==========================
+   STUDENT TASK VIEW
+========================== */
 async function renderStudentTasks(){
-    app.innerHTML =
-    `<button class='back-btn' onclick='selectGroup("${currentGroup}")'>Back</button>
-     <h3>${currentStudent}</h3>
-     <h4>Your tasks</h4>`;
+  app.innerHTML=
+  `<button class='back-btn' onclick='selectGroup("${currentGroup}")'>Back</button>
+   <h3>${currentStudent}</h3><h4>Your tasks</h4>`;
 
-    const snap = await db.ref("submissions/"+currentGroup+"/"+currentStudent).get();
-    const submitted = snap.exists() ? snap.val() : {};
+  let submitted={};
+  try{
+    const snap=await db.ref("submissions/"+currentGroup+"/"+currentStudent).get();
+    submitted=snap.exists()?snap.val():{};
+  }catch(e){ submitted={}; }
 
-    tasks.forEach(t=>{
-        const row=document.createElement("div");
-        row.className="task-row " + (submitted[t] ? "green":"red");
-        row.innerHTML = `
-            <span>${t}</span>
-            <button onclick="uploadTask('${t}')">Submit</button>
-        `;
-        app.appendChild(row);
-    });
+  tasks.forEach(t=>{
+    const done = submitted[t];
+    const row=document.createElement("div");
+    row.className="task-row "+(done?"green":"red");
+    row.innerHTML = `
+      <span>${t}</span>
+      <div>
+        ${done? `<button onclick="window.open('${done.url}','_blank')">View</button>` : ``}
+        <button onclick="uploadTask('${t}')">${done?"Resubmit":"Submit"}</button>
+      </div>
+    `;
+    app.appendChild(row);
+  });
 }
 
-// -------------------------------------------
-// UPLOADCARE DIRECT UPLOAD
-// -------------------------------------------
-function uploadTask(taskName){
-    const input=document.createElement("input");
-    input.type="file";
-    input.accept="image/*";
-    input.onchange=()=>handleUpload(input.files[0],taskName);
-    input.click();
-}
+/* ==========================
+   UPLOAD TASK (UPLOADCARE)
+========================== */
+async function uploadTask(taskName){
+  const file = await uploadcare.openDialog().done(f=>f);
+  const info = await file.promise();
 
-async function handleUpload(file,taskName){
-    if(!file) return;
-
-    const form = new FormData();
-    form.append("UPLOADCARE_PUB_KEY","452dd8e20a2e77457998");
-    form.append("UPLOADCARE_STORE","auto");
-    form.append("file",file);
-
-    const res = await fetch("https://upload.uploadcare.com/base/",{
-        method:"POST", body:form
+  await db.ref("submissions/"+currentGroup+"/"+currentStudent+"/"+taskName)
+    .set({
+      url:info.cdnUrl,
+      time:Date.now()
     });
 
-    const data = await res.json();
-    if(data.file){
-        const url = "https://ucarecdn.com/"+data.file+"/";
-        await db.ref("submissions/"+currentGroup+"/"+currentStudent+"/"+taskName)
-               .set({url:url, time:Date.now()});
-        alert("Uploaded!");
-        renderStudentTasks();
-    } else {
-        alert("Upload failed.");
-    }
+  alert("Uploaded successfully!");
+  renderStudentTasks();
 }
 
-// -------------------------------------------
-// ADMIN PANEL
-// -------------------------------------------
+/* ==========================
+   ADMIN PANEL
+========================== */
 function renderAdmin(){
-    app.innerHTML=`<h3>${currentRole==="teacher"?"Teacher Panel":"Assistant Panel"}</h3>`;
-    Object.keys(groups).forEach(g=>{
-        const c=document.createElement("div");
-        c.className="card";
+  app.innerHTML =
+  `<button class='back-btn' onclick='renderLogin()'>Logout</button>
+   <h3>Admin Panel (${currentRole})</h3>
+   <h4>Select a group</h4>`;
 
-        c.innerHTML=`<b>${g}</b><br>
-            <button onclick="openGroupAdmin('${g}')">Open</button>
-            <button onclick="downloadGroupCSV('${g}')" class='secondary'>Export</button>
-            ${currentRole==="teacher" ? `<button onclick="clearGroup('${g}')" class="danger">Clear group</button>` : ""}
-        `;
-        app.appendChild(c);
-    });
+  for(let g in groups){
+    const b=document.createElement("button");
+    b.className="group-btn";
+    b.textContent=g;
+    b.onclick=()=>openGroupAdmin(g);
+    app.appendChild(b);
+  }
 }
 
+/* ==========================
+   ADMIN: OPEN GROUP
+========================== */
 async function openGroupAdmin(g){
-    currentGroup=g;
-    app.innerHTML =
-    `<button class='back-btn' onclick='renderAdmin()'>Back</button>
-     <h3>${g}</h3>`;
+  currentGroup=g;
+  app.innerHTML=
+  `<button class='back-btn' onclick='renderAdmin()'>Back</button>
+   <h3>${g}</h3>`;
 
-    const snap = await db.ref("submissions/"+g).get();
-    const data = snap.exists() ? snap.val() : {};
+  let data={};
+  try{
+    const snap=await db.ref("submissions/"+g).get();
+    data=snap.exists()?snap.val():{};
+  }catch(e){ data={}; }
 
-    groups[g].forEach(s=>{
-        const count = data[s] ? Object.keys(data[s]).length : 0;
-        const row=document.createElement("div");
-        row.className="student-row";
-        row.innerHTML=`
-            <div><b>${s}</b><br><small>${count} submitted</small></div>
-            <button onclick="viewStudent('${s}')">Open</button>
-        `;
-        app.appendChild(row);
+  groups[g].forEach(st=>{
+    const count = data[st]? Object.keys(data[st]).length : 0;
+    const row=document.createElement("div");
+    row.className="task-row";
+    row.innerHTML=`
+      <span><b>${st}</b><br><small>${count} submitted</small></span>
+      <div>
+        <button onclick="viewStudent('${st}')">Open</button>
+        <button class="secondary" onclick="downloadStudentCSV('${g}','${st}')">Export</button>
+      </div>
+    `;
+    app.appendChild(row);
+  });
+
+  app.innerHTML+=`
+    <button class="danger" style="margin-top:15px;"
+      onclick="downloadGroupCSV('${g}')">Export whole group</button>
+
+    ${currentRole==="teacher" ?
+      `<button class="danger" style="margin-left:10px"
+          onclick="clearGroup('${g}')">Clear group</button>` : ""}
+  `;
+}
+
+/* ==========================
+   VIEW STUDENT (ADMIN)
+========================== */
+async function viewStudent(st){
+  currentStudent=st;
+  app.innerHTML=
+  `<button class='back-btn' onclick='openGroupAdmin("${currentGroup}")'>Back</button>
+   <h3>${st}</h3>`;
+
+  let data={};
+  try{
+    const snap=await db.ref("submissions/"+currentGroup+"/"+st).get();
+    data=snap.exists()?snap.val():{};
+  }catch(e){ data={}; }
+
+  tasks.forEach(t=>{
+    const rec=data[t];
+    const row=document.createElement("div");
+    row.className="task-row "+(rec?"green":"red");
+    row.innerHTML=`
+      <span>${t}</span>
+      <div>
+        ${rec? `<button onclick="window.open('${rec.url}','_blank')">View</button>` : ""}
+        ${currentRole==="teacher" ? `<button class='danger' onclick="clearTask('${t}')">Delete</button>` : ""}
+      </div>
+    `;
+    app.appendChild(row);
+  });
+}
+
+/* ==========================
+   CLEAR TASK (ADMIN)
+========================== */
+async function clearTask(t){
+  await db.ref("submissions/"+currentGroup+"/"+currentStudent+"/"+t).remove();
+  viewStudent(currentStudent);
+}
+
+/* ==========================
+   CLEAR GROUP (TEACHER)
+========================== */
+async function clearGroup(g){
+  if(!confirm("Are you sure?")) return;
+  await db.ref("submissions/"+g).remove();
+  openGroupAdmin(g);
+}
+
+/* ==========================
+   EXPORT STUDENT CSV
+========================== */
+async function downloadStudentCSV(g,st){
+  let data={};
+  try{
+    const snap=await db.ref("submissions/"+g+"/"+st).get();
+    data=snap.exists()?snap.val():{};
+  }catch(e){ data={}; }
+
+  let csv="Task,Submitted,URL,Time\n";
+  tasks.forEach(t=>{
+    const rec=data[t];
+    csv+=`${t},${rec?"yes":"no"},${rec?rec.url:""},${rec?new Date(rec.time).toLocaleString():""}\n`;
+  });
+
+  const blob=new Blob([csv],{type:"text/csv"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=`${st.replace(/ /g,"_")}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ==========================
+   EXPORT WHOLE GROUP CSV
+========================== */
+async function downloadGroupCSV(g){
+  let data={};
+  try{
+    const snap=await db.ref("submissions/"+g).get();
+    data=snap.exists()?snap.val():{};
+  }catch(e){ data={}; }
+
+  let csv="Student,Task,Submitted,URL,Time\n";
+
+  groups[g].forEach(st=>{
+    const stData=data[st]||{};
+    tasks.forEach(task=>{
+      const rec=stData[task];
+      csv+=`${st},${task},${rec?"yes":"no"},${rec?rec.url:""},${rec?new Date(rec.time).toLocaleString():""}\n`;
     });
+  });
+
+  const blob=new Blob([csv],{type:"text/csv"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=`${g.replace(/ /g,"_")}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
-async function viewStudent(s){
-    currentStudent=s;
-    app.innerHTML =
-    `<button class='back-btn' onclick='openGroupAdmin("${currentGroup}")'>Back</button>
-     <h3>${s}</h3>`;
-
-    const snap = await db.ref("submissions/"+currentGroup+"/"+s).get();
-    const data = snap.exists() ? snap.val() : {};
-
-    tasks.forEach(t=>{
-        const row=document.createElement("div");
-        row.className="task-row";
-        if(data[t]) row.classList.add("green"); else row.classList.add("red");
-        row.innerHTML = `
-           <span>${t}</span>
-           ${data[t] ? `<button onclick="window.open('${data[t].url}','_blank')">View</button>` : ""}
-           ${currentRole==="teacher" ? `<button class='danger' onclick="clearTask('${t}')">Delete</button>` : ""}
-        `;
-        app.appendChild(row);
-    });
-}
-
-function clearTask(task){
-    db.ref("submissions/"+currentGroup+"/"+currentStudent+"/"+task).remove();
-    viewStudent(currentStudent);
-}
-
-function clearGroup(g){
-    if(confirm("Clear all submissions in this group?")){
-        db.ref("submissions/"+g).remove();
-        alert("Cleared.");
-        renderAdmin();
-    }
-}
-
-function downloadGroupCSV(g){
-    const ref=db.ref("submissions/"+g);
-    ref.get().then(snap=>{
-        const data=snap.exists()?snap.val():{};
-        let csv="Student,Task,URL,Time\n";
-
-        Object.keys(data).forEach(st=>{
-            Object.keys(data[st]).forEach(task=>{
-                csv+=`${st},${task},${data[st][task].url},${data[st][task].time}\n`;
-            });
-        });
-
-        const blob=new Blob([csv],{type:"text/csv"});
-        const url=URL.createObjectURL(blob);
-        const a=document.createElement("a");
-        a.href=url;
-        a.download=g+".csv";
-        a.click();
-        URL.revokeObjectURL(url);
-    });
-}
-
-// -------------------------------------------
-// START
-// -------------------------------------------
+/* ==========================
+   DEFAULT SCREEN
+========================== */
 renderLogin();
 
 </script>
