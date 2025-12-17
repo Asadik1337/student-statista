@@ -507,7 +507,7 @@ function showHomework(group,student,stage,lesson){
     <b>${hw}</b><br>
     <label class="primary">
       Submit photo
-      <input type="file" accept="image/*"
+      <input type="file" accept="image/*" multiple
        onchange="submitHW(this,'${group}','${student}','${stage}','${lesson}','${hw}')">
     </label>
    </div>`;
@@ -515,17 +515,46 @@ function showHomework(group,student,stage,lesson){
  app.innerHTML=h;
 }
 
-async function submitHW(input,group,student,stage,lesson,hw){
- const file=input.files[0];
- if(!file){alert("Photo required");return;}
- const fd=new FormData();fd.append("image",file);
- const r=await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`,{method:"POST",body:fd});
- const j=await r.json();
- if(!j.success){alert("Upload failed");return;}
- await db.ref(`submissions/${group}/${student}/${stage}/${lesson}/${hw}`).set({
-  fileUrl:j.data.url,time:Date.now()
- });
- alert("Submitted ✔");
+async function submitHW(input, group, student, stage, lesson, hw){
+  const files = Array.from(input.files);
+
+  if (files.length === 0) {
+    alert("At least one photo is required.");
+    return;
+  }
+
+  if (files.length > 4) {
+    alert("You can upload максимум 4 photos.");
+    return;
+  }
+
+  let uploadedUrls = [];
+
+  for (const file of files) {
+    const fd = new FormData();
+    fd.append("image", file);
+
+    const r = await fetch(
+      `https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`,
+      { method: "POST", body: fd }
+    );
+
+    const j = await r.json();
+
+    if (!j.success || !j.data?.url) {
+      alert("One of the photos failed to upload.");
+      return;
+    }
+
+    uploadedUrls.push(j.data.url);
+  }
+
+  await db.ref(`submissions/${group}/${student}/${stage}/${lesson}/${hw}`).set({
+    files: uploadedUrls,
+    time: Date.now()
+  });
+
+  alert("Submitted successfully ✔");
 }
 
 /* ================= ADMIN ================= */
@@ -594,20 +623,21 @@ async function adminStage(group, student, stage){
         .once("value");
 
       const d = snap.val();
-      const status = d && d.fileUrl ? "Yes" : "No";
+      const status = d && Array.isArray(d.files) && d.files.length > 0 ? "Yes" : "No";
       const color = d && d.fileUrl ? "green" : "red";
 
       h += `
         <div class="hw">
           ${hw} :
           <span class="${color}">${status}</span>
-          ${
-            d && d.fileUrl
-              ? `<button onclick="window.open('${d.fileUrl}','_blank')">
-                   View photo
-                 </button>`
-              : ''
-          }
+${
+  d && Array.isArray(d.files)
+    ? d.files.map(url =>
+        `<button onclick="window.open('${url}','_blank')">View photo</button>`
+      ).join(" ")
+    : ''
+}
+
         </div>
       `;
     }
@@ -627,5 +657,6 @@ home();
 </script>
 </body>
 </html>
+
 
 
