@@ -624,7 +624,7 @@ async function adminStage(group, student, stage){
 
       const d = snap.val();
       const status = d && Array.isArray(d.files) && d.files.length > 0 ? "Yes" : "No";
-      const color = d && d.fileUrl ? "green" : "red";
+      const color = d && Array.isArray(d.files) && d.files.length > 0 ? "green" : "red";
 
       h += `
         <div class="hw">
@@ -657,6 +657,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
