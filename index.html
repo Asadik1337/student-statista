@@ -547,16 +547,75 @@ function admin(){
 }
 
 function adminGroup(group){
- app.innerHTML=`<button class="back" onclick="admin()">Back</button><h3>${group}</h3>`;
- GROUPS[group].forEach(s=>{
-  let block=document.createElement("div");
-  block.className="card";
-  block.innerHTML=`<b>${s}</b><br>`;
-  Object.keys(STAGES).forEach(stage=>{
-    block.innerHTML+=`<i>${stage}</i><br>`;
+  let h = `<button class="back" onclick="admin()">Back</button><h3>${group}</h3>`;
+  GROUPS[group].forEach(student=>{
+    h += `
+      <div class="card">
+        <button class="primary" onclick="adminStudent('${group}','${student}')">
+          ${student}
+        </button>
+      </div>
+    `;
   });
-  app.appendChild(block);
- });
+  app.innerHTML = h;
+}
+
+function adminStudent(group, student){
+  let h = `
+    <button class="back" onclick="adminGroup('${group}')">Back</button>
+    <h3>${student}</h3>
+  `;
+  Object.keys(STAGES).forEach(stage=>{
+    h += `
+      <div class="card">
+        <button class="secondary"
+          onclick="adminStage('${group}','${student}','${stage}')">
+          ${stage}
+        </button>
+      </div>
+    `;
+  });
+  app.innerHTML = h;
+}
+
+async function adminStage(group, student, stage){
+  let h = `
+    <button class="back"
+      onclick="adminStudent('${group}','${student}')">Back</button>
+    <h3>${stage}</h3>
+  `;
+
+  for (const lesson of Object.keys(STAGES[stage])) {
+    h += `<div class="card"><b>${lesson}</b><br>`;
+
+    for (const hw of STAGES[stage][lesson]) {
+      const snap = await db
+        .ref(`submissions/${group}/${student}/${stage}/${lesson}/${hw}`)
+        .once("value");
+
+      const d = snap.val();
+      const status = d && d.fileUrl ? "Yes" : "No";
+      const color = d && d.fileUrl ? "green" : "red";
+
+      h += `
+        <div class="hw">
+          ${hw} :
+          <span class="${color}">${status}</span>
+          ${
+            d && d.fileUrl
+              ? `<button onclick="window.open('${d.fileUrl}','_blank')">
+                   View photo
+                 </button>`
+              : ''
+          }
+        </div>
+      `;
+    }
+
+    h += `</div>`;
+  }
+
+  app.innerHTML = h;
 }
 
 function clearGroup(group){
@@ -568,4 +627,5 @@ home();
 </script>
 </body>
 </html>
+
 
