@@ -498,21 +498,45 @@ function showLessons(group,student,stage){
  app.innerHTML=h;
 }
 
-function showHomework(group,student,stage,lesson){
- let h=`<button class="back" onclick="showLessons('${group}','${student}','${stage}')">Back</button>
-        <h3>${stage} / ${lesson}</h3>`;
- STAGES[stage][lesson].forEach(hw=>{
-  h+=`
-   <div class="card hw">
-    <b>${hw}</b><br>
-    <label class="primary">
-      Submit photo
-      <input type="file" accept="image/*" multiple
-       onchange="submitHW(this,'${group}','${student}','${stage}','${lesson}','${hw}')">
-    </label>
-   </div>`;
- });
- app.innerHTML=h;
+async function showHomework(group, student, stage, lesson){
+  let h = `
+    <button class="back"
+      onclick="showLessons('${group}','${student}','${stage}')">Back</button>
+    <h3>${stage} / ${lesson}</h3>
+  `;
+
+  for (const hw of STAGES[stage][lesson]) {
+    const snap = await db
+      .ref(`submissions/${group}/${student}/${stage}/${lesson}/${hw}`)
+      .once("value");
+
+    const d = snap.val();
+    const submitted = d && Array.isArray(d.files) && d.files.length > 0;
+
+    h += `
+      <div class="card hw">
+        <b>${hw}</b><br>
+        <span class="${submitted ? 'green' : 'red'}">
+          ${submitted ? 'Submitted' : 'Not submitted'}
+        </span><br>
+        ${
+          submitted
+            ? d.files.map(url =>
+                `<img src="${url}" />`
+              ).join("")
+            : ''
+        }
+        <br>
+        <label class="primary">
+          Submit photo
+          <input type="file" accept="image/*" multiple
+            onchange="submitHW(this,'${group}','${student}','${stage}','${lesson}','${hw}')">
+        </label>
+      </div>
+    `;
+  }
+
+  app.innerHTML = h;
 }
 
 async function submitHW(input, group, student, stage, lesson, hw){
@@ -657,6 +681,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
