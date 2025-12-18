@@ -672,16 +672,91 @@ function admin(){
 }
 
 function adminGroup(group){
-  let h = `<button class="back" onclick="admin()">Back</button><h3>${group}</h3>`;
-  GROUPS[group].forEach(student=>{
+  let h = `
+    <button class="back" onclick="admin()">Back</button>
+    <h3>${group}</h3>
+    <h4>Select Stage</h4>
+  `;
+
+  Object.keys(STAGES).forEach(stage=>{
     h += `
       <div class="card">
-        <button class="primary" onclick="adminStudent('${group}','${student}')">
-          ${student}
+        <button class="primary"
+          onclick="adminStageSelect('${group}','${stage}')">
+          ${stage}
         </button>
       </div>
     `;
   });
+
+  app.innerHTML = h;
+}
+
+  function adminStageSelect(group, stage){
+  let h = `
+    <button class="back" onclick="adminGroup('${group}')">Back</button>
+    <h3>${group}</h3>
+    <h4>${stage}</h4>
+    <h4>Select Lesson</h4>
+  `;
+
+  Object.keys(STAGES[stage]).forEach(lesson=>{
+    h += `
+      <div class="card">
+        <button class="secondary"
+          onclick="adminLessonView('${group}','${stage}','${lesson}')">
+          ${lesson}
+        </button>
+      </div>
+    `;
+  });
+
+  app.innerHTML = h;
+}
+
+async function adminLessonView(group, stage, lesson){
+  let h = `
+    <button class="back"
+      onclick="adminStageSelect('${group}','${stage}')">Back</button>
+
+    <h3>${group}</h3>
+    <h4>${stage} / ${lesson}</h4>
+  `;
+
+  for (const student of GROUPS[group]) {
+    let submittedCount = 0;
+    let total = STAGES[stage][lesson].length;
+    let photosHTML = "";
+
+    for (const hw of STAGES[stage][lesson]) {
+      const snap = await db
+        .ref(`submissions/${group}/${student}/${stage}/${lesson}/${hw}`)
+        .once("value");
+
+      const d = snap.val();
+
+      if (d && Array.isArray(d.files)) {
+        submittedCount++;
+        photosHTML += d.files.map(url =>
+          `<a href="${url}" target="_blank">📷</a>`
+        ).join(" ");
+      }
+    }
+
+    const status =
+      submittedCount === total
+        ? `<span class="green">Completed</span>`
+        : `<span class="red">Missing (${submittedCount}/${total})</span>`;
+
+    h += `
+      <div class="card">
+        <b>${student}</b><br>
+        ${status}<br>
+        ${photosHTML}
+      </div>
+    `;
+  }
+
   app.innerHTML = h;
 }
 
@@ -753,6 +828,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
