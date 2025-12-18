@@ -724,9 +724,7 @@ async function adminLessonView(group, stage, lesson){
   `;
 
   for (const student of GROUPS[group]) {
-    let submittedCount = 0;
-    let total = STAGES[stage][lesson].length;
-    let photosHTML = "";
+    h += `<div class="card"><b>${student}</b><br>`;
 
     for (const hw of STAGES[stage][lesson]) {
       const snap = await db
@@ -734,27 +732,26 @@ async function adminLessonView(group, stage, lesson){
         .once("value");
 
       const d = snap.val();
+      const ok = d && Array.isArray(d.files) && d.files.length > 0;
 
-      if (d && Array.isArray(d.files)) {
-        submittedCount++;
-        photosHTML += d.files.map(url =>
-          `<a href="${url}" target="_blank">📷</a>`
-        ).join(" ");
-      }
+      h += `
+        <div class="hw">
+          ${ok 
+            ? `<span class="green">✅ ${hw}</span>` 
+            : `<span class="red">❌ ${hw}</span>`
+          }
+          ${
+            ok
+              ? d.files.map(url =>
+                  `<a href="${url}" target="_blank">📷</a>`
+                ).join(" ")
+              : ''
+          }
+        </div>
+      `;
     }
 
-    const status =
-      submittedCount === total
-        ? `<span class="green">Completed</span>`
-        : `<span class="red">Missing (${submittedCount}/${total})</span>`;
-
-    h += `
-      <div class="card">
-        <b>${student}</b><br>
-        ${status}<br>
-        ${photosHTML}
-      </div>
-    `;
+    h += `</div>`;
   }
 
   app.innerHTML = h;
@@ -769,6 +766,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
