@@ -715,18 +715,17 @@ function adminGroup(group){
 }
 
 async function adminLessonView(group, stage, lesson){
-  <h4>${stage} / ${lesson}</h4>
-
-<button class="secondary"
-  onclick="exportLessonCSV('${group}','${stage}','${lesson}')">
-  📤 Export lesson to CSV
-</button>
   let h = `
     <button class="back"
       onclick="adminStageSelect('${group}','${stage}')">Back</button>
 
     <h3>${group}</h3>
     <h4>${stage} / ${lesson}</h4>
+
+    <button class="secondary"
+      onclick="exportLessonCSV('${group}','${stage}','${lesson}')">
+      📤 Export lesson to CSV
+    </button>
   `;
 
   for (const student of GROUPS[group]) {
@@ -742,9 +741,10 @@ async function adminLessonView(group, stage, lesson){
 
       h += `
         <div class="hw">
-          ${ok 
-            ? `<span class="green">✅ ${hw}</span>` 
-            : `<span class="red">❌ ${hw}</span>`
+          ${
+            ok
+              ? `<span class="green">Yes — ${hw}</span>`
+              : `<span class="red">No — ${hw}</span>`
           }
           ${
             ok
@@ -810,6 +810,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
