@@ -715,6 +715,12 @@ function adminGroup(group){
 }
 
 async function adminLessonView(group, stage, lesson){
+  <h4>${stage} / ${lesson}</h4>
+
+<button class="secondary"
+  onclick="exportLessonCSV('${group}','${stage}','${lesson}')">
+  📤 Export lesson to CSV
+</button>
   let h = `
     <button class="back"
       onclick="adminStageSelect('${group}','${stage}')">Back</button>
@@ -762,10 +768,49 @@ function clearGroup(group){
  db.ref(`submissions/${group}`).remove().then(()=>alert("Cleared"));
 }
 
+async function exportLessonCSV(group, stage, lesson){
+  const students = GROUPS[group];
+  const homeworks = STAGES[stage][lesson];
+
+  let csv = [];
+  csv.push(["Student Name", ...homeworks].join(","));
+
+  for (const student of students) {
+    let row = [student];
+
+    for (const hw of homeworks) {
+      const snap = await db
+        .ref(`submissions/${group}/${student}/${stage}/${lesson}/${hw}`)
+        .once("value");
+
+      const d = snap.val();
+      const yesNo =
+        d && Array.isArray(d.files) && d.files.length > 0
+          ? "Yes"
+          : "No";
+
+      row.push(yesNo);
+    }
+
+    csv.push(row.join(","));
+  }
+
+  const blob = new Blob([csv.join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${group} - ${stage} - ${lesson}.csv`;
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
 home();
 </script>
 </body>
 </html>
+
 
 
 
