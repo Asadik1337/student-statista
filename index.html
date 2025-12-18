@@ -479,6 +479,51 @@ const STAGES = {
 
 /* ================= APP ================= */
 const app=document.getElementById("app");
+function openInstruction(){
+  app.innerHTML = `
+    <button class="back" onclick="home()">Back</button>
+
+    <h2>📘 Student-Friendly Instructions: How to Use the Website</h2>
+
+    <div class="card">
+      <b>Step 1</b><br>
+      When you open the website, click <b>“Enter as Student”</b>.
+    </div>
+
+    <div class="card">
+      <b>Step 2</b><br>
+      Find your <b>group</b> and click on it.  
+      After that, find your <b>full name</b> in the list and click on it.
+    </div>
+
+    <div class="card">
+      <b>Step 3</b><br>
+      You will see <b>5 stages</b>.  
+      Click the stage you are currently studying, then choose the <b>lesson</b> and the <b>homework</b> you need to submit.
+    </div>
+
+    <div class="card">
+      <b>Step 4</b><br>
+      Attach <b>at least one photo</b> of your homework and submit it.<br><br>
+      ⚠️ <b>Without a photo, the homework will NOT be saved and will NOT be marked as “Submitted”.</b>
+    </div>
+
+    <div class="card">
+      <b>📌 Important Note</b><br>
+      For <b>Speaking homework</b>:
+      <ul>
+        <li>Send your speaking to the group (as usual)</li>
+        <li>Take a screenshot of it</li>
+        <li>Upload the screenshot to the website</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <b>✅ Final Reminder</b><br>
+      After submitting, always check that the homework status shows <b>“Submitted”</b>.
+    </div>
+  `;
+}
 
 /* ================= HOME ================= */
 function home(){
@@ -704,6 +749,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
