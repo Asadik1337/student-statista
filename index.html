@@ -7,6 +7,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
 
 <style>
 body{margin:0;font-family:Arial;background:#f4f6fb}
@@ -68,6 +69,7 @@ firebase.initializeApp({
   projectId: "studentstatista"
 });
 const db = firebase.database();
+const storage = firebase.storage();
 
 /* ================= IMG UPLOAD ================= */
 const IMGBB_KEY = "be4e74e3246530deeb9dd1d7cfb31a3d";
@@ -611,7 +613,7 @@ async function showHomework(group, student, stage, lesson){
   app.innerHTML = h;
 }
 
-async function submitHW(input, group, student, stage, lesson, hw){
+async function submitHW(input, group, student, stage, lesson, hw) {
   const files = Array.from(input.files);
 
   if (files.length === 0) {
@@ -620,29 +622,25 @@ async function submitHW(input, group, student, stage, lesson, hw){
   }
 
   if (files.length > 4) {
-    alert("You can upload максимум 4 photos.");
+    alert("You can upload maximum 4 photos.");
     return;
   }
 
   let uploadedUrls = [];
 
   for (const file of files) {
-    const fd = new FormData();
-    fd.append("image", file);
+    const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, "_");
 
-    const r = await fetch(
-      `https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`,
-      { method: "POST", body: fd }
-    );
+    const filePath = `
+      submissions/${group}/${student}/${stage}/${lesson}/${hw}/${Date.now()}_${safeName}
+    `.replace(/\s+/g, "_");
 
-    const j = await r.json();
+    const ref = storage.ref(filePath);
 
-    if (!j.success || !j.data?.url) {
-      alert("One of the photos failed to upload.");
-      return;
-    }
+    await ref.put(file);
 
-    uploadedUrls.push(j.data.url);
+    const url = await ref.getDownloadURL();
+    uploadedUrls.push(url);
   }
 
   await db.ref(`submissions/${group}/${student}/${stage}/${lesson}/${hw}`).set({
@@ -810,6 +808,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
