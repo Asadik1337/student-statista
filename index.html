@@ -612,30 +612,24 @@ async function showHomework(group, student, stage, lesson){
   app.innerHTML = h;
 }
 
+function safe(v) {
+  return v.replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
 async function submitHW(input, group, student, stage, lesson, hw) {
   const files = Array.from(input.files);
-
   if (files.length === 0) {
     alert("At least one photo is required.");
-    return;
-  }
-
-  if (files.length > 4) {
-    alert("You can upload maximum 4 photos.");
     return;
   }
 
   let uploadedUrls = [];
 
   for (const file of files) {
-    const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, "_");
-
-    const filePath = `
-      submissions/${group}/${student}/${stage}/${lesson}/${hw}/${Date.now()}_${safeName}
-    `.replace(/\s+/g, "_");
+    const filePath =
+      `submissions/${safe(group)}/${safe(student)}/${safe(stage)}/${safe(lesson)}/${safe(hw)}/${Date.now()}_${safe(file.name)}`;
 
     const ref = storage.ref(filePath);
-
     await ref.put(file);
 
     const url = await ref.getDownloadURL();
@@ -807,6 +801,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
