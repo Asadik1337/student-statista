@@ -62,7 +62,6 @@ input[type=file]{display:none}
 
 <script>
 /* ================= FIREBASE ================= */
-<script>
 window.onerror = function(msg, src, line, col, err){
   alert("JS error: " + msg + "\nLine: " + line);
 };
@@ -673,6 +672,10 @@ async function showHomework(group, student, stage, lesson){
   app.innerHTML = h;
 }
 
+function safe(v) {
+  return String(v).replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
 async function compressImage(file, maxW=1280, quality=0.75){
   const img = document.createElement("img");
   const url = URL.createObjectURL(file);
@@ -694,11 +697,14 @@ async function compressImage(file, maxW=1280, quality=0.75){
     canvas.toBlob(res, "image/jpeg", quality)
   );
 
+  if (!blob) return file;
+
   return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type:"image/jpeg" });
 }
-  
+
 async function submitHW(input, group, student, stage, lesson, hw) {
   alert("Uploading... do not close the page");
+
   const files = Array.from(input.files);
   if (files.length === 0) {
     alert("At least one photo is required.");
@@ -713,11 +719,15 @@ async function submitHW(input, group, student, stage, lesson, hw) {
 
     const ref = storage.ref(filePath);
     const small = await compressImage(file);
-    await ref.put(small);
 
-
-    const url = await ref.getDownloadURL();
-    uploadedUrls.push(url);
+    try {
+      await ref.put(small);
+      const url = await ref.getDownloadURL();
+      uploadedUrls.push(url);
+    } catch (e) {
+      alert("Upload failed: " + (e.message || e));
+      return;
+    }
   }
 
   await db.ref(`submissions/${group}/${student}/${stage}/${lesson}/${hw}`).set({
@@ -885,6 +895,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
