@@ -62,12 +62,16 @@ input[type=file]{display:none}
 
 <script>
 /* ================= FIREBASE ================= */
+<script>
+window.onerror = function(msg, src, line, col, err){
+  alert("JS error: " + msg + "\nLine: " + line);
+};
 firebase.initializeApp({
   apiKey: "AIzaSyDJDVZazGiEUshVicJX8ObvxIjDPgA5rTo",
   authDomain: "studentstatista.firebaseapp.com",
   databaseURL: "https://studentstatista-default-rtdb.firebaseio.com",
   projectId: "studentstatista",
-  storageBucket: "studentstatista.firebasestorage.app"
+  storageBucket: "studentstatista.appspot.com"
 });
 const db = firebase.database();
 const storage = firebase.storage();
@@ -630,6 +634,11 @@ function showLessons(group,student,stage){
 }
 
 async function showHomework(group, student, stage, lesson){
+  const lessonSnap = await db
+    .ref(`submissions/${group}/${student}/${stage}/${lesson}`)
+    .once("value");
+  const lessonData = lessonSnap.val() || {};
+
   let h = `
     <button class="back"
       onclick="showLessons('${group}','${student}','${stage}')">Back</button>
@@ -637,11 +646,7 @@ async function showHomework(group, student, stage, lesson){
   `;
 
   for (const hw of STAGES[stage][lesson]) {
-    const snap = await db
-      .ref(`submissions/${group}/${student}/${stage}/${lesson}/${hw}`)
-      .once("value");
-
-    const d = snap.val();
+    const d = lessonData[hw];
     const submitted = d && Array.isArray(d.files) && d.files.length > 0;
 
     h += `
@@ -652,9 +657,7 @@ async function showHomework(group, student, stage, lesson){
         </span><br>
         ${
           submitted
-            ? d.files.map(url =>
-                `<img src="${url}" />`
-              ).join("")
+            ? d.files.map(url => `<img src="${url}" />`).join("")
             : ''
         }
         <br>
@@ -670,11 +673,32 @@ async function showHomework(group, student, stage, lesson){
   app.innerHTML = h;
 }
 
-function safe(v) {
-  return v.replace(/[^a-zA-Z0-9_-]/g, "_");
-}
+async function compressImage(file, maxW=1280, quality=0.75){
+  const img = document.createElement("img");
+  const url = URL.createObjectURL(file);
+  img.src = url;
+  await new Promise(res => img.onload = res);
 
+  const scale = Math.min(1, maxW / img.width);
+  const w = Math.round(img.width * scale);
+  const h = Math.round(img.height * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, w, h);
+
+  URL.revokeObjectURL(url);
+
+  const blob = await new Promise(res =>
+    canvas.toBlob(res, "image/jpeg", quality)
+  );
+
+  return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type:"image/jpeg" });
+}
+  
 async function submitHW(input, group, student, stage, lesson, hw) {
+  alert("Uploading... do not close the page");
   const files = Array.from(input.files);
   if (files.length === 0) {
     alert("At least one photo is required.");
@@ -688,7 +712,9 @@ async function submitHW(input, group, student, stage, lesson, hw) {
       `submissions/${safe(group)}/${safe(student)}/${safe(stage)}/${safe(lesson)}/${safe(hw)}/${Date.now()}_${safe(file.name)}`;
 
     const ref = storage.ref(filePath);
-    await ref.put(file);
+    const small = await compressImage(file);
+    await ref.put(small);
+
 
     const url = await ref.getDownloadURL();
     uploadedUrls.push(url);
@@ -859,6 +885,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
