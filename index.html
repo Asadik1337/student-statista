@@ -61,7 +61,14 @@ input[type=file]{display:none}
   <div class="container" id="app"></div>
 
 <script>
-/* ================= FIREBASE ================= */ 
+/* ================= FIREBASE ================= */
+window.onerror = function(msg, src, line, col, err){
+  alert(
+    "JS error: " + msg +
+    "\nSource: " + src +
+    "\nLine: " + line + ":" + col +
+    (err && err.stack ? "\n\n" + err.stack : "")
+  );
 };
 firebase.initializeApp({
   apiKey: "AIzaSyDJDVZazGiEUshVicJX8ObvxIjDPgA5rTo",
@@ -892,6 +899,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
