@@ -10,43 +10,72 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
 
 <style>
-body{margin:0;font-family:Arial;background:#f4f6fb}
-header{background:#1e88e5;color:#fff;padding:15px;text-align:center;font-size:20px;position:relative;}
+body{
+  margin:0;
+  font-family:Arial;
+  background:#f4f6fb;
+  color:#111;
+}
+
+header{
+  background:#1e88e5;
+  color:#fff;
+  padding:15px;
+  text-align:center;
+  font-size:20px;
+  position:relative;
+}
+
 .container{max-width:1200px;margin:20px auto;padding:10px}
-.card{background:#fff;border-radius:8px;padding:15px;margin-bottom:12px}
+
+.card{
+  background:#fff;
+  border-radius:8px;
+  padding:15px;
+  margin-bottom:12px;
+  color:#111;
+}
+
+.card b, .card h3, .card h4 { color:#111; }
+
 button{padding:8px 14px;border:none;border-radius:6px;cursor:pointer}
 .primary{background:#1e88e5;color:white}
 .secondary{background:#777;color:white}
 .danger{background:#c62828;color:white}
 .back{background:#555;color:white;margin-bottom:10px}
+
 .green{color:#2e7d32;font-weight:bold}
 .red{color:#c62828;font-weight:bold}
+
 .stage{margin-left:0}
 .lesson{margin-left:20px}
 .hw{margin-left:40px}
+
 img{max-width:120px;border-radius:6px;margin-top:6px}
 input[type=file]{display:none}
 
-/* ✅ HELP BUTTON */
+/* HELP BUTTON */
 #helpBtn{
-  position: absolute;
-  top: 50%;
-  right: 16px;
-  transform: translateY(-50%);
-  background: #ffffff;
-  color: #1e88e5;
-  border: 2px solid #1e88e5;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  position:absolute;
+  top:50%;
+  right:16px;
+  transform:translateY(-50%);
+  background:#ffffff;
+  color:#1e88e5;
+  border:2px solid #1e88e5;
+  padding:6px 12px;
+  border-radius:8px;
+  font-size:13px;
+  cursor:pointer;
+  box-shadow:0 2px 6px rgba(0,0,0,0.15);
+  z-index:99999;
 }
 
 #helpBtn:hover{
-  background: #1e88e5;
-  color: #ffffff;
+  background:#1e88e5;
+  color:#ffffff;
 }
+  
 #webviewWarning{
   position: sticky;
   top: 0;
@@ -811,7 +840,7 @@ function login(){
 function admin(){
  let h=`<button class="back" onclick="home()">Back</button><h3>Admin Panel</h3>`;
  Object.keys(GROUPS).forEach(g=>{
-  h+=`<div class="card"><b>${g}</b><br>
+ h+=`<div class="card"><div style="font-weight:700;margin-bottom:8px;color:#111">${g}</div> ...`
    <button class="primary" onclick="adminGroup('${g}')">Open</button>
    <button class="danger" onclick="clearGroup('${g}')">Clear Group Files</button>
   </div>`;
@@ -958,6 +987,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
