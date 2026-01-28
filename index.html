@@ -63,13 +63,20 @@ input[type=file]{display:none}
 <script>
 /* ================= FIREBASE ================= */
 window.onerror = function(msg, src, line, col, err){
-  alert(
-    "JS error: " + msg +
-    "\nSource: " + src +
-    "\nLine: " + line + ":" + col +
-    (err && err.stack ? "\n\n" + err.stack : "")
-  );
+  console.log("JS error:", msg, src, line, col, err);
+
+  // Неблокирующая плашка вместо alert
+  const box = document.getElementById("errBox") || (function(){
+    const d = document.createElement("div");
+    d.id = "errBox";
+    d.style.cssText = "position:fixed;left:10px;right:10px;bottom:10px;z-index:99999;background:#111;color:#fff;padding:10px;border-radius:10px;font-size:13px;opacity:.92";
+    document.body.appendChild(d);
+    return d;
+  })();
+
+  box.innerHTML = "⚠️ Открыто во встроенном браузере. Нажмите ⋮ → <b>Open in Chrome</b>.";
 };
+  
 firebase.initializeApp({
   apiKey: "AIzaSyDJDVZazGiEUshVicJX8ObvxIjDPgA5rTo",
   authDomain: "studentstatista.firebaseapp.com",
@@ -917,6 +924,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
