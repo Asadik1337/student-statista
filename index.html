@@ -10,8 +10,24 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
 
 <style>
-body{
- #webviewWarning{
+body{ margin:0; font-family:Arial; background:#f4f6fb; }
+header{background:#1e88e5;color:#fff;padding:15px;text-align:center;font-size:20px;position:relative;}
+.container{max-width:1200px;margin:20px auto;padding:10px}
+.card{background:#fff;border-radius:8px;padding:15px;margin-bottom:12px}
+button{padding:8px 14px;border:none;border-radius:6px;cursor:pointer}
+.primary{background:#1e88e5;color:white}
+.secondary{background:#777;color:white}
+.danger{background:#c62828;color:white}
+.back{background:#555;color:white;margin-bottom:10px}
+.green{color:#2e7d32;font-weight:bold}
+.red{color:#c62828;font-weight:bold}
+.stage{margin-left:0}
+.lesson{margin-left:20px}
+.hw{margin-left:40px}
+img{max-width:120px;border-radius:6px;margin-top:6px}
+input[type=file]{display:none}
+
+#webviewWarning{
   display:none;
   position: sticky;
   top: 0;
@@ -61,25 +77,7 @@ body{
 
 <script>
 /* ================= FIREBASE ================= */
-window.onerror = function(msg, src, line, col, err){
-  const ua = navigator.userAgent.toLowerCase();
-  const isWebView =
-    ua.includes("wv") || ua.includes("telegram") || ua.includes("instagram") || ua.includes("fbav");
-
-  // 1) В консоль — для тебя
-  console.log("JS error:", msg, src, line, col, err);
-
-  // 2) Для учеников — тихо и понятно (без паники)
-  if(isWebView){
-    const bar = document.getElementById("webviewWarning");
-    if(bar) bar.style.display = "block";
-  }
-
-  // вернуть false, чтобы браузер мог логировать дальше
-  return false;
-};
-  
-firebase.initializeApp({
+  firebase.initializeApp({
   apiKey: "AIzaSyDJDVZazGiEUshVicJX8ObvxIjDPgA5rTo",
   authDomain: "studentstatista.firebaseapp.com",
   databaseURL: "https://studentstatista-default-rtdb.firebaseio.com",
@@ -791,14 +789,19 @@ function login(){
 }
 
 function admin(){
- let h=`<button class="back" onclick="home()">Back</button><h3>Admin Panel</h3>`;
- Object.keys(GROUPS).forEach(g=>{
- h+=`<div class="card"><div style="font-weight:700;margin-bottom:8px;color:#111">${g}</div> ...`
-   <button class="primary" onclick="adminGroup('${g}')">Open</button>
-   <button class="danger" onclick="clearGroup('${g}')">Clear Group Files</button>
-  </div>`;
- });
- app.innerHTML=h;
+  let h = `<button class="back" onclick="home()">Back</button><h3>Admin Panel</h3>`;
+
+  Object.keys(GROUPS).forEach(g=>{
+    h += `
+      <div class="card">
+        <div style="font-weight:700;margin-bottom:8px;color:#111">${g}</div>
+        <button class="primary" onclick="adminGroup('${g}')">Open</button>
+        <button class="danger" onclick="clearGroup('${g}')">Clear Group Files</button>
+      </div>
+    `;
+  });
+
+  app.innerHTML = h;
 }
 
 function adminGroup(group){
@@ -940,6 +943,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
