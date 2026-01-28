@@ -47,34 +47,53 @@ input[type=file]{display:none}
   background: #1e88e5;
   color: #ffffff;
 }
+#webviewWarning{
+  position: sticky;
+  top: 0;
+  z-index: 9999;
+  background: #fff3cd;
+  color: #856404;
+  padding: 10px 14px;
+  font-size: 13px;
+  text-align: center;
+  border-bottom: 1px solid #ffeeba;
+}
 
 </style>
 </head>
 
 
 <body>
+
+<div id="webviewWarning" style="display:none;">
+  ⚠️ Для стабильной загрузки фото откройте сайт в браузере:
+  <b>⋮ → Open in Chrome / Safari</b>
+</div>
+
 <header>
   Statista
-  <div id="helpBtn" onclick="openInstruction()">📘Instructions
-  </div>
-</header>
+  <div id="helpBtn" onclick="openInstruction()">📘Instructions</div>
+<header>
   <div class="container" id="app"></div>
 
 <script>
 /* ================= FIREBASE ================= */
 window.onerror = function(msg, src, line, col, err){
+  const ua = navigator.userAgent.toLowerCase();
+  const isWebView =
+    ua.includes("wv") || ua.includes("telegram") || ua.includes("instagram") || ua.includes("fbav");
+
+  // 1) В консоль — для тебя
   console.log("JS error:", msg, src, line, col, err);
 
-  // Неблокирующая плашка вместо alert
-  const box = document.getElementById("errBox") || (function(){
-    const d = document.createElement("div");
-    d.id = "errBox";
-    d.style.cssText = "position:fixed;left:10px;right:10px;bottom:10px;z-index:99999;background:#111;color:#fff;padding:10px;border-radius:10px;font-size:13px;opacity:.92";
-    document.body.appendChild(d);
-    return d;
-  })();
+  // 2) Для учеников — тихо и понятно (без паники)
+  if(isWebView){
+    const bar = document.getElementById("webviewWarning");
+    if(bar) bar.style.display = "block";
+  }
 
-  box.innerHTML = "⚠️ Открыто во встроенном браузере. Нажмите ⋮ → <b>Open in Chrome</b>.";
+  // вернуть false, чтобы браузер мог логировать дальше
+  return false;
 };
   
 firebase.initializeApp({
@@ -86,6 +105,21 @@ firebase.initializeApp({
 });
 const db = firebase.database();
 const storage = firebase.storage();
+(function detectWebView(){
+  const ua = navigator.userAgent.toLowerCase();
+
+  const isWebView =
+    ua.includes("wv") ||                 // Android WebView
+    ua.includes("telegram") ||
+    ua.includes("instagram") ||
+    ua.includes("fbav") ||               // Facebook/Meta in-app browser
+    ua.includes("line");
+
+  if(isWebView){
+    const bar = document.getElementById("webviewWarning");
+    if(bar) bar.style.display = "block";
+  }
+})();
 
 /* ================= GROUPS ================= */
 const GROUPS = {
@@ -924,6 +958,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
