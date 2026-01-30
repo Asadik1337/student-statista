@@ -766,7 +766,7 @@ async function showHomework(group, student, stage, lesson){
         }
         <br>
         <label class="primary">
-          Submit photo
+          Submit photo (max 4)
           <input type="file" accept="image/*" multiple
             onchange="submitHW(this,'${group}','${student}','${stage}','${lesson}','${hw}')">
         </label>
@@ -809,11 +809,18 @@ async function compressImage(file, maxW=1280, quality=0.75){
 
 async function submitHW(input, group, student, stage, lesson, hw) {
 
-  const files = Array.from(input.files);
-  if (files.length === 0) {
-    alert("At least one photo is required.");
-    return;
-  }
+ const files = Array.from(input.files);
+
+if (files.length === 0) {
+  alert("At least one photo is required.");
+  return;
+}
+
+if (files.length > 4) {
+  alert("❌ You can upload maximum 4 photos.\nPlease select up to 4 images.");
+  input.value = ""; // очищаем выбор
+  return;
+}
 
   let uploadedUrls = [];
 
@@ -1004,6 +1011,7 @@ home();
 </script>
 </body>
 </html>
+
 
 
 
