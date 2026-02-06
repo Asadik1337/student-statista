@@ -56,10 +56,8 @@ input[type=file]{display:none}
   z-index: 99999;
 }
 #helpBtn:hover{ background:#1e88e5; color:#fff; }
-
 </style>
 </head>
-
 
 <body>
 
@@ -77,7 +75,7 @@ input[type=file]{display:none}
 
 <script>
 /* ================= FIREBASE ================= */
-  firebase.initializeApp({
+firebase.initializeApp({
   apiKey: "AIzaSyDJDVZazGiEUshVicJX8ObvxIjDPgA5rTo",
   authDomain: "studentstatista.firebaseapp.com",
   databaseURL: "https://studentstatista-default-rtdb.firebaseio.com",
@@ -100,6 +98,48 @@ const storage = firebase.storage();
     if (bar) bar.style.display = "block";
   }
 })();
+
+/* ================= ✅ ADDED: NAV STATE (to stop resetting to home) ================= */
+const NAV_KEY = "statista_nav_v1";
+function setNav(view, payload){
+  try{
+    localStorage.setItem(NAV_KEY, JSON.stringify({ view, payload, t: Date.now() }));
+  }catch(e){}
+}
+function getNav(){
+  try{
+    const raw = localStorage.getItem(NAV_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function clearNav(){
+  try{ localStorage.removeItem(NAV_KEY); }catch(e){}
+}
+function restoreNavOrHome(){
+  const nav = getNav();
+  if(!nav || !nav.view){ home(); return; }
+
+  // восстановление последнего экрана
+  try{
+    if(nav.view === "home") return home();
+    if(nav.view === "enterStudent") return enterStudent();
+    if(nav.view === "selectStudent") return selectStudent(nav.payload.group);
+    if(nav.view === "showStages") return showStages(nav.payload.group, nav.payload.student);
+    if(nav.view === "showLessons") return showLessons(nav.payload.group, nav.payload.student, nav.payload.stage);
+    if(nav.view === "showHomework") return showHomework(nav.payload.group, nav.payload.student, nav.payload.stage, nav.payload.lesson);
+    if(nav.view === "instructions") return openInstruction();
+
+    if(nav.view === "admin") return admin();
+    if(nav.view === "adminGroup") return adminGroup(nav.payload.group);
+    if(nav.view === "adminStageSelect") return adminStageSelect(nav.payload.group, nav.payload.stage);
+    if(nav.view === "adminLessonView") return adminLessonView(nav.payload.group, nav.payload.stage, nav.payload.lesson);
+
+    // если что-то не совпало
+    home();
+  }catch(e){
+    home();
+  }
+}
 
 /* ================= GROUPS ================= */
 const GROUPS = {
@@ -132,7 +172,7 @@ const GROUPS = {
   "ALISHEROV NURMUHAMMAD","DJURAYEVA NURGUL","ISLOMBEKOVA EZOZA",
   "ISMAILOVA EZOZA","JORABEKOV AFZALBEK","MAHMUDJONOV FAYZULLOH",
   "MIRAHMEDOVA MUSLIMA","OLIMJONOVA DILNURA","TOJIBOYEV MUXAMMAD",
-  "UROLOV SIROJ","XUDOYBERDIYEV QOSIMBEK","SHODIYEVA ROBIYA","ABDULXAMIDOV DILYORBEK",
+  "UROLOV SIROJ","XUDOYBERDIYEV QOSIMBEK","SHODIYEVA ROBIYA","ABDULXAMIDOV DILYORBEK"
  ],
  "GROUP IELTS 15:30 TTS":[
   "ABUBAKIROVA RAHIMA","IMANKULOVA CHAROS","ISLOMXOJAYEV YUNUS",
@@ -147,545 +187,113 @@ const GROUPS = {
   "GANIJONOV AZIZBEK","HAMIDJONOV ABDULMALIK","IBROHIMOV JASURBEK","JURABOYEVA ZEBINISO",
   "KARIMOVA AZIZAXON","OLIMJONOV ABDUGAFFOR","RAXMATULAYEVA ROZITYA","SHOKIROV ABDURAZZOQ",
   "ULMASOV DALER","ZAHRIDDINOV FAZLIDDIN","MIRZABOYEVA ROZYA","TIMUR","DAVLATBEK JORAYEV",
-  "SOPORBOYEVA KAMOLA","DAYNOVOVA ZEBINISO","JURAYEV KAMRON","UMAROVA NILUFAR"
-]
+  "SOPORBOYEVA KAMOLA","DAYNOVOVA ZEBINISO","JURAYEV KAMRON"
+ ]
 };
 
 /* ================= STAGES ================= */
-/* ⚠️ ВНИМАНИЕ: ЭТО СЕРДЦЕ СИСТЕМЫ */
 const STAGES = {
-  "STAGE 1 - WRITING TASK 1": {
-    "LESSON 1": [
-      "Dictation 1-3",
-      "Reading Test Bank Updated 1-3",
-      "New Podcasts 1-4",
-      "Writing Task 1 (3 graphs - introduction & overview)",
-      "Vocabulary for Test Bank (Learn)",
-      "Speaking: Work or Study"
-    ],
-    "LESSON 2": [
-      "Dictation 4-6",
-      "Reading Test Bank Updated 4-6",
-      "New Podcasts 5-8",
-      "Writing Task 1 (Full report)",
-      "Vocabulary for Test Bank (Learn)",
-      "Speaking: Hometown"
-    ],
-    "LESSON 3": [
-      "Dictation 7-9",
-      "Reading Test Bank Updated 7-9",
-      "New Podcasts 9-12",
-      "Writing Task 1 (Full report)",
-      "Vocabulary for Test Bank (Learn)",
-      "Speaking: Home"
-    ],
-    "LESSON 4": [
-      "Dictation 10-12",
-      "Reading Test Bank Updated 10-12",
-      "New Podcasts 13-16",
-      "Writing Task 1 (Report 5-6 full)",
-      "Vocabulary for Test Bank (Learn)",
-      "Speaking: Social Media"
-    ],
-    "LESSON 5": [
-      "Dictation 13-15",
-      "Reading Test Bank Updated 13-15",
-      "New Podcasts 17-20",
-      "Writing Task 1 (Report 7-8 full)",
-      "Vocabulary for Test Bank (Learn)",
-      "Speaking: Colors"
-    ],
-    "LESSON 6": [
-      "Dictation 16-18",
-      "Reading Test Bank Updated 16-18",
-      "New Podcasts 21-24",
-      "Writing Task 1 (Full report)",
-      "Vocabulary for Test Bank (Learn)",
-      "Speaking: Music"
-    ],
-    "LESSON 7": [
-      "Dictation 19-21",
-      "Reading Test Bank Updated 19-21",
-      "New Podcasts 25-28",
-      "Writing Task 1 (Full report)",
-      "Vocabulary for Test Bank (Learn)",
-      "Speaking: Food"
-    ],
-    "LESSON 8": [
-      "Dictation 22-24",
-      "Reading Test Bank Updated 22-24",
-      "New Podcasts 29-32",
-      "Vocabulary for Test Bank (Learn)",
-      "Writing Report",
-      "Speaking: Shopping"
-    ],
-    "LESSON 9": [
-      "Dictation 25-27",
-      "Reading Test Bank Updated 25-27",
-      "New Podcasts 33-36",
-      "Vocabulary for Test Bank (Learn)",
-      "Writing Task 1",
-      "Speaking: Sport"
-    ]
+  "STAGE 1 - WRITING TASK 1": { /* ... (без изменений) ... */ 
+    "LESSON 1": ["Dictation 1-3","Reading Test Bank Updated 1-3","New Podcasts 1-4","Writing Task 1 (3 graphs - introduction & overview)","Vocabulary for Test Bank (Learn)","Speaking: Work or Study"],
+    "LESSON 2": ["Dictation 4-6","Reading Test Bank Updated 4-6","New Podcasts 5-8","Writing Task 1 (Full report)","Vocabulary for Test Bank (Learn)","Speaking: Hometown"],
+    "LESSON 3": ["Dictation 7-9","Reading Test Bank Updated 7-9","New Podcasts 9-12","Writing Task 1 (Full report)","Vocabulary for Test Bank (Learn)","Speaking: Home"],
+    "LESSON 4": ["Dictation 10-12","Reading Test Bank Updated 10-12","New Podcasts 13-16","Writing Task 1 (Report 5-6 full)","Vocabulary for Test Bank (Learn)","Speaking: Social Media"],
+    "LESSON 5": ["Dictation 13-15","Reading Test Bank Updated 13-15","New Podcasts 17-20","Writing Task 1 (Report 7-8 full)","Vocabulary for Test Bank (Learn)","Speaking: Colors"],
+    "LESSON 6": ["Dictation 16-18","Reading Test Bank Updated 16-18","New Podcasts 21-24","Writing Task 1 (Full report)","Vocabulary for Test Bank (Learn)","Speaking: Music"],
+    "LESSON 7": ["Dictation 19-21","Reading Test Bank Updated 19-21","New Podcasts 25-28","Writing Task 1 (Full report)","Vocabulary for Test Bank (Learn)","Speaking: Food"],
+    "LESSON 8": ["Dictation 22-24","Reading Test Bank Updated 22-24","New Podcasts 29-32","Vocabulary for Test Bank (Learn)","Writing Report","Speaking: Shopping"],
+    "LESSON 9": ["Dictation 25-27","Reading Test Bank Updated 25-27","New Podcasts 33-36","Vocabulary for Test Bank (Learn)","Writing Task 1","Speaking: Sport"]
   },
-
-  "STAGE 2 - LISTENING": {
-    "LESSON 1": [
-      "Listening Strategies Unit 1",
-      "Listening Practice Lesson 1",
-      "Reading Practice Lesson 1",
-      "Spelling Dictation (Pages 2-3)",
-      "Task 1 Editing (Rewriting)",
-      "Speaking: Shopping"
-    ],
-    "LESSON 2": [
-      "Listening Strategies Unit 2",
-      "Listening Practice Lesson 2",
-      "Reading Practice Lesson 2",
-      "Spelling Dictation (All pages)",
-      "Listening Made Easy",
-      "Task 1 (Rewriting)",
-      "Speaking: Morning routine"
-    ],
-    "LESSON 3": [
-      "Listening Strategies Unit 3",
-      "Listening Practice Lesson 3",
-      "Reading Practice Lesson 3",
-      "Spelling Dictation",
-      "Listening Made Easy",
-      "Task 1 (Rewriting)",
-      "Speaking: News"
-    ],
-    "LESSON 4": [
-      "Listening Strategies Unit 4",
-      "Listening Practice Lesson 4",
-      "Reading Practice Lesson 4",
-      "Spelling Dictation",
-      "Listening Made Easy",
-      "Task 1 (Rewriting)",
-      "Speaking: Sharing things"
-    ],
-    "LESSON 5": [
-      "Listening Strategies Unit 5",
-      "Listening Practice Lesson 5",
-      "Reading Practice Lesson 5",
-      "Spelling Dictation"
-    ]
+  "STAGE 2 - LISTENING": { /* ... */ 
+    "LESSON 1":["Listening Strategies Unit 1","Listening Practice Lesson 1","Reading Practice Lesson 1","Spelling Dictation (Pages 2-3)","Task 1 Editing (Rewriting)","Speaking: Shopping"],
+    "LESSON 2":["Listening Strategies Unit 2","Listening Practice Lesson 2","Reading Practice Lesson 2","Spelling Dictation (All pages)","Listening Made Easy","Task 1 (Rewriting)","Speaking: Morning routine"],
+    "LESSON 3":["Listening Strategies Unit 3","Listening Practice Lesson 3","Reading Practice Lesson 3","Spelling Dictation","Listening Made Easy","Task 1 (Rewriting)","Speaking: News"],
+    "LESSON 4":["Listening Strategies Unit 4","Listening Practice Lesson 4","Reading Practice Lesson 4","Spelling Dictation","Listening Made Easy","Task 1 (Rewriting)","Speaking: Sharing things"],
+    "LESSON 5":["Listening Strategies Unit 5","Listening Practice Lesson 5","Reading Practice Lesson 5","Spelling Dictation"]
   },
-
-  "STAGE 3 - READING": {
-    "LESSON 1": [
-      "Cambridge 10 Test 1 (L/R) + deep analysis",
-      "TED Radio Hour (Where Joy Hides?) Part 1",
-      "Shadowing Video",
-      "Articles"
-    ],
-    "LESSON 2": [
-      "Cambridge 10 Test 2 (L/R) + deep analysis",
-      "TED Radio Hour (Where Joy Hides?) Part 2",
-      "Task 1 report review",
-      "Articles"
-    ],
-    "LESSON 3": [
-      "Cambridge 10 Test 3 (L/R) + deep analysis",
-      "TED Radio Hour (Quiet) Part 1",
-      "Shadowing Video",
-      "Articles"
-    ],
-    "LESSON 4": [
-      "Cambridge 10 Test 4 (L/R) + deep analysis",
-      "TED Radio Hour (Quiet) Part 2",
-      "Task 1 report review",
-      "Articles"
-    ],
-    "LESSON 5": [
-      "Cambridge 11 Test 1 (L/R) + deep analysis",
-      "TED Radio Hour (The Food We Eat) Part 1",
-      "Shadowing Video",
-      "Articles"
-    ],
-    "LESSON 6": [
-      "Cambridge 11 Test 2 (L/R) + deep analysis",
-      "TED Radio Hour (The Food We Eat) Part 2",
-      "Task 1 report review",
-      "Articles"
-    ],
-    "LESSON 7": [
-      "Cambridge 11 Test 3 (L/R) + deep analysis",
-      "TED Radio Hour (The Five Senses) Part 1",
-      "Shadowing Video",
-      "Articles"
-    ],
-    "LESSON 8": [
-      "Cambridge 11 Test 4 (L/R) + deep analysis",
-      "TED Radio Hour (The Five Senses) Part 2",
-      "Task 1 new report",
-      "Articles"
-    ],
-    "LESSON 9": [
-      "Cambridge 12 Test 1 (L/R) + deep analysis",
-      "TED Radio Hour (The Power Of Design) Part 1",
-      "Shadowing Video",
-      "Articles"
-    ],
-    "LESSON 10": [
-      "Cambridge 12 Test 2 (L/R) + deep analysis",
-      "TED Radio Hour (The Power Of Design) Part 2",
-      "Task 1 new report",
-      "Articles"
-    ]
+  "STAGE 3 - READING": { /* ... */ 
+    "LESSON 1":["Cambridge 10 Test 1 (L/R) + deep analysis","TED Radio Hour (Where Joy Hides?) Part 1","Shadowing Video","Articles"],
+    "LESSON 2":["Cambridge 10 Test 2 (L/R) + deep analysis","TED Radio Hour (Where Joy Hides?) Part 2","Task 1 report review","Articles"],
+    "LESSON 3":["Cambridge 10 Test 3 (L/R) + deep analysis","TED Radio Hour (Quiet) Part 1","Shadowing Video","Articles"],
+    "LESSON 4":["Cambridge 10 Test 4 (L/R) + deep analysis","TED Radio Hour (Quiet) Part 2","Task 1 report review","Articles"],
+    "LESSON 5":["Cambridge 11 Test 1 (L/R) + deep analysis","TED Radio Hour (The Food We Eat) Part 1","Shadowing Video","Articles"],
+    "LESSON 6":["Cambridge 11 Test 2 (L/R) + deep analysis","TED Radio Hour (The Food We Eat) Part 2","Task 1 report review","Articles"],
+    "LESSON 7":["Cambridge 11 Test 3 (L/R) + deep analysis","TED Radio Hour (The Five Senses) Part 1","Shadowing Video","Articles"],
+    "LESSON 8":["Cambridge 11 Test 4 (L/R) + deep analysis","TED Radio Hour (The Five Senses) Part 2","Task 1 new report","Articles"],
+    "LESSON 9":["Cambridge 12 Test 1 (L/R) + deep analysis","TED Radio Hour (The Power Of Design) Part 1","Shadowing Video","Articles"],
+    "LESSON 10":["Cambridge 12 Test 2 (L/R) + deep analysis","TED Radio Hour (The Power Of Design) Part 2","Task 1 new report","Articles"]
   },
-
-  "STAGE 4 - WRITING TASK 2 AND SPEAKING": {
-    "LESSON 1": [
-      "Cambridge 12 Test 3 (L/R) + deep analysis",
-      "TED Radio Hour (Making Mistakes) Part 1",
-      "Speaking Part 2 + Part 3",
-      "Articles"
-    ],
-    "LESSON 2": [
-      "Cambridge 12 Test 4 (L/R) + deep analysis",
-      "TED Radio Hour (Making Mistakes) Part 2",
-      "Speaking Part 2 + Part 3",
-      "Articles",
-      "Opinion Essay"
-    ],
-    "LESSON 3": [
-      "Cambridge 13 Test 1 (L/R) + deep analysis",
-      "TED Radio Hour (Rethinking School) Part 1",
-      "Speaking Part 2 + Part 3",
-      "Articles",
-      "Discussion Essay"
-    ],
-    "LESSON 4": [
-      "Cambridge 13 Test 2 (L/R) + deep analysis",
-      "TED Radio Hour (Rethinking School) Part 2",
-      "Speaking Part 2 + Part 3",
-      "Articles",
-      "Advantages / Disadvantages Essay"
-    ],
-    "LESSON 5": [
-      "Cambridge 13 Test 3 (L/R) + deep analysis",
-      "TED Radio Hour (Overcoming)",
-      "Speaking Part 2 + Part 3",
-      "Articles",
-      "Issue Discussion Essay"
-    ],
-    "LESSON 6": [
-      "Cambridge 13 Test 4 (L/R) + deep analysis",
-      "TED Radio Hour (Networks) Part 1",
-      "Speaking Part 2 + Part 3",
-      "Articles",
-      "Mixed / Direct Essays"
-    ],
-    "LESSON 7": [
-      "Cambridge 14 Test 1 (L/R) + deep analysis",
-      "TED Radio Hour (Networks) Part 2",
-      "Speaking Part 2 + Part 3",
-      "Articles",
-      "Direct Essay"
-    ],
-    "LESSON 8": [
-      "Cambridge 14 Test 2 (L/R/W) + deep analysis",
-      "TED Radio Hour (From Curiosity To Discovery) Part 1",
-      "Speaking Part 2 + Part 3",
-      "Articles"
-    ],
-    "LESSON 9": [
-      "Cambridge 14 Test 3 (L/R/W) + deep analysis",
-      "TED Radio Hour (From Curiosity To Discovery) Part 2",
-      "Speaking Part 2 + Part 3",
-      "Articles"
-    ],
-    "LESSON 10": [
-      "Cambridge 14 Test 4 (L/R/W) + deep analysis",
-      "TED Radio Hour (Comfort Zone) Part 1",
-      "Speaking Part 2 + Part 3",
-      "Articles"
-    ],
-    "LESSON 11": [
-      "Cambridge 15 Test 1 (L/R/W) + deep analysis",
-      "TED Radio Hour (Comfort Zone) Part 2",
-      "Speaking Part 2 + Part 3",
-      "Articles"
-    ],
-    "LESSON 12": [
-      "Cambridge 15 Test 2 (L/R/W) + deep analysis",
-      "TED Radio Hour (Money Paradox) Part 1",
-      "Speaking Part 2 + Part 3",
-      "Articles"
-    ]
+  "STAGE 4 - WRITING TASK 2 AND SPEAKING": { /* ... */ 
+    "LESSON 1":["Cambridge 12 Test 3 (L/R) + deep analysis","TED Radio Hour (Making Mistakes) Part 1","Speaking Part 2 + Part 3","Articles"],
+    "LESSON 2":["Cambridge 12 Test 4 (L/R) + deep analysis","TED Radio Hour (Making Mistakes) Part 2","Speaking Part 2 + Part 3","Articles","Opinion Essay"],
+    "LESSON 3":["Cambridge 13 Test 1 (L/R) + deep analysis","TED Radio Hour (Rethinking School) Part 1","Speaking Part 2 + Part 3","Articles","Discussion Essay"],
+    "LESSON 4":["Cambridge 13 Test 2 (L/R) + deep analysis","TED Radio Hour (Rethinking School) Part 2","Speaking Part 2 + Part 3","Articles","Advantages / Disadvantages Essay"],
+    "LESSON 5":["Cambridge 13 Test 3 (L/R) + deep analysis","TED Radio Hour (Overcoming)","Speaking Part 2 + Part 3","Articles","Issue Discussion Essay"],
+    "LESSON 6":["Cambridge 13 Test 4 (L/R) + deep analysis","TED Radio Hour (Networks) Part 1","Speaking Part 2 + Part 3","Articles","Mixed / Direct Essays"],
+    "LESSON 7":["Cambridge 14 Test 1 (L/R) + deep analysis","TED Radio Hour (Networks) Part 2","Speaking Part 2 + Part 3","Articles","Direct Essay"],
+    "LESSON 8":["Cambridge 14 Test 2 (L/R/W) + deep analysis","TED Radio Hour (From Curiosity To Discovery) Part 1","Speaking Part 2 + Part 3","Articles"],
+    "LESSON 9":["Cambridge 14 Test 3 (L/R/W) + deep analysis","TED Radio Hour (From Curiosity To Discovery) Part 2","Speaking Part 2 + Part 3","Articles"],
+    "LESSON 10":["Cambridge 14 Test 4 (L/R/W) + deep analysis","TED Radio Hour (Comfort Zone) Part 1","Speaking Part 2 + Part 3","Articles"],
+    "LESSON 11":["Cambridge 15 Test 1 (L/R/W) + deep analysis","TED Radio Hour (Comfort Zone) Part 2","Speaking Part 2 + Part 3","Articles"],
+    "LESSON 12":["Cambridge 15 Test 2 (L/R/W) + deep analysis","TED Radio Hour (Money Paradox) Part 1","Speaking Part 2 + Part 3","Articles"]
   },
-
   "STAGE 5 - POLISHING SKILLS": {
-    "LESSON 1": [
-      "Full Listening x1",
-      "Full Reading x1",
-      "Article reading",
-      "1 hour podcast",
-      "Writing Task 1",
-      "Speaking Practice",
-      "Vocabulary for IELTS",
-      "ELS Upper Intermediate"
-    ],
-    "LESSON 2": [
-      "Full Listening x1",
-      "Full Reading x1",
-      "Article reading",
-      "1 hour podcast",
-      "Writing Task 2",
-      "Speaking Practice",
-      "Vocabulary for IELTS",
-      "ELS Upper Intermediate"
-    ],
-    "LESSON 3": [
-      "Full Listening x1",
-      "Full Reading x1",
-      "Article reading",
-      "1 hour podcast",
-      "Writing Task 1",
-      "Speaking Practice",
-      "Vocabulary for IELTS",
-      "ELS Upper Intermediate"
-    ],
-    "LESSON 4": [
-      "Full Listening x1",
-      "Full Reading x1",
-      "Article reading",
-      "1 hour podcast",
-      "Writing Task 2",
-      "Speaking Practice",
-      "Vocabulary for IELTS",
-      "ELS Upper Intermediate"
-    ],
-    "LESSON 5": [
-      "Full Listening x1",
-      "Full Reading x1",
-      "Article reading",
-      "1 hour podcast",
-      "Writing Task 1",
-      "Speaking Practice",
-      "Vocabulary for IELTS",
-      "ELS Upper Intermediate"
-    ],
-    "LESSON 6": [
-      "Full Listening x1",
-      "Full Reading x1",
-      "Article reading",
-      "1 hour podcast",
-      "Writing Task 2",
-      "Speaking Practice",
-      "Vocabulary for IELTS",
-      "ELS Upper Intermediate"
-    ],
-    "LESSON 7": [
-      "Full Listening x1",
-      "Full Reading x1",
-      "Article reading",
-      "1 hour podcast",
-      "Writing Task 1",
-      "Speaking Practice",
-      "Vocabulary for IELTS",
-      "ELS Upper Intermediate"
-    ],
-    "LESSON 8": [
-      "Full Listening x1",
-      "Full Reading x1",
-      "Article reading",
-      "1 hour podcast",
-      "Writing Task 2",
-      "Speaking Practice",
-      "Vocabulary for IELTS",
-      "ELS Upper Intermediate"
-    ],
-    "LESSON 9": [
-      "Full Listening x1",
-      "Full Reading x1",
-      "Article reading",
-      "1 hour podcast",
-      "Writing Task 1",
-      "Speaking Practice",
-      "Vocabulary for IELTS",
-      "ELS Upper Intermediate"
-    ],
-    "LESSON 10": [
-      "Full Listening x1",
-      "Full Reading x1",
-      "Article reading",
-      "1 hour podcast",
-      "Writing Task 2",
-      "Speaking Practice",
-      "Vocabulary for IELTS",
-      "ELS Upper Intermediate"
-    ],
-    "LESSON 11": [
-      "Full Listening x1",
-      "Full Reading x1",
-      "Article reading",
-      "1 hour podcast",
-      "Writing Task 1",
-      "Speaking Practice",
-      "Vocabulary for IELTS",
-      "ELS Upper Intermediate"
-    ],
-    "LESSON 12": [
-      "Full Listening x1",
-      "Full Reading x1",
-      "Article reading",
-      "1 hour podcast",
-      "Writing Task 2",
-      "Speaking Practice",
-      "Vocabulary for IELTS",
-      "ELS Upper Intermediate"
-    ]
+    "LESSON 1":["Full Listening x1","Full Reading x1","Article reading","1 hour podcast","Writing Task 1","Speaking Practice","Vocabulary for IELTS","ELS Upper Intermediate"],
+    "LESSON 2":["Full Listening x1","Full Reading x1","Article reading","1 hour podcast","Writing Task 2","Speaking Practice","Vocabulary for IELTS","ELS Upper Intermediate"],
+    "LESSON 3":["Full Listening x1","Full Reading x1","Article reading","1 hour podcast","Writing Task 1","Speaking Practice","Vocabulary for IELTS","ELS Upper Intermediate"],
+    "LESSON 4":["Full Listening x1","Full Reading x1","Article reading","1 hour podcast","Writing Task 2","Speaking Practice","Vocabulary for IELTS","ELS Upper Intermediate"],
+    "LESSON 5":["Full Listening x1","Full Reading x1","Article reading","1 hour podcast","Writing Task 1","Speaking Practice","Vocabulary for IELTS","ELS Upper Intermediate"],
+    "LESSON 6":["Full Listening x1","Full Reading x1","Article reading","1 hour podcast","Writing Task 2","Speaking Practice","Vocabulary for IELTS","ELS Upper Intermediate"],
+    "LESSON 7":["Full Listening x1","Full Reading x1","Article reading","1 hour podcast","Writing Task 1","Speaking Practice","Vocabulary for IELTS","ELS Upper Intermediate"],
+    "LESSON 8":["Full Listening x1","Full Reading x1","Article reading","1 hour podcast","Writing Task 2","Speaking Practice","Vocabulary for IELTS","ELS Upper Intermediate"],
+    "LESSON 9":["Full Listening x1","Full Reading x1","Article reading","1 hour podcast","Writing Task 1","Speaking Practice","Vocabulary for IELTS","ELS Upper Intermediate"],
+    "LESSON 10":["Full Listening x1","Full Reading x1","Article reading","1 hour podcast","Writing Task 2","Speaking Practice","Vocabulary for IELTS","ELS Upper Intermediate"],
+    "LESSON 11":["Full Listening x1","Full Reading x1","Article reading","1 hour podcast","Writing Task 1","Speaking Practice","Vocabulary for IELTS","ELS Upper Intermediate"],
+    "LESSON 12":["Full Listening x1","Full Reading x1","Article reading","1 hour podcast","Writing Task 2","Speaking Practice","Vocabulary for IELTS","ELS Upper Intermediate"]
   },
-
   "STAGE 6 - FINAL PRACTICE": {
-  "LESSON 1": [
-    "Listening full",
-    "Reading full",
-    "Article - new words",
-    "Article ELS (pages 312-315)",
-    "Task 1",
-    "Speaking",
-    "Cambridge 19 - test 1",
-    "Longer Article",
-    "Grammar revision lesson 1"
-  ],
-  "LESSON 2": [
-    "Listening full",
-    "Reading full",
-    "Article - new words",
-    "Article ELS (pages 316-319)",
-    "Task 2",
-    "Speaking",
-    "Cambridge 19 - test 2",
-    "Longer Article",
-    "Grammar revision lesson 2"
-  ],
-  "LESSON 3": [
-    "Listening full",
-    "Reading full",
-    "Article - new words",
-    "Article ELS (pages 320-323)",
-    "Task 1",
-    "Speaking",
-    "Cambridge 19 - test 3",
-    "Longer Article",
-    "Grammar revision lesson 3"
-  ],
-  "LESSON 4": [
-    "Listening full",
-    "Reading full",
-    "Article - new words",
-    "Article ELS (pages 324-327)",
-    "Task 2",
-    "Speaking",
-    "Cambridge 19 - test 4",
-    "Longer Article",
-    "Grammar revision lesson 4"
-  ],
-  "LESSON 5": [
-    "Listening full",
-    "Reading full",
-    "Article - new words",
-    "Article ELS (pages 328-331)",
-    "Task 1",
-    "Speaking",
-    "Cambridge 20 - test 1",
-    "Longer Article",
-    "Grammar revision lesson 5"
-  ],
-  "LESSON 6": [
-    "Listening full",
-    "Reading full",
-    "Article - new words",
-    "Article ELS (pages 332-335)",
-    "Task 2",
-    "Speaking",
-    "Cambridge 20 - test 2",
-    "Longer Article",
-    "Grammar revision lesson 6"
-  ],
-   "LESSON 7": [
-    "Listening full",
-    "Reading full",
-    "Article - new words",
-    "Article ELS (pages 336-339)",
-    "Task 1",
-    "Speaking",
-    "Cambridge 20 - test 3",
-    "Longer Article",
-    "Grammar revision lesson 7"
-  ],
-    "LESSON 8": [
-    "Listening full",
-    "Reading full",
-    "Article - new words",
-    "Article ELS (pages 340-343)",
-    "Task 2",
-    "Speaking",
-    "Cambridge 20 - test 4",
-    "Longer Article",
-    "Grammar revision lesson 8"
-  ],
-    "LESSON 9": [
-    "Listening full",
-    "Reading full",
-    "Article - new words",
-    "Article ELS (pages 344-347)",
-    "Task 1",
-    "Speaking",
-    "Volume 7 - Test 1",
-    "Longer Article"
-  ],
-    "LESSON 10": [
-    "Listening full",
-    "Reading full",
-    "Article - new words",
-    "Article ELS (pages 348-351)",
-    "Task 2",
-    "Speaking",
-    "Volume 7 - Test 2",
-    "Longer Article"
-            
-   ]
-}
+    "LESSON 1":["Listening full","Reading full","Article - new words","Article ELS (pages 312-315)","Task 1","Speaking","Cambridge 19 - test 1","Longer Article","Grammar revision lesson 1"],
+    "LESSON 2":["Listening full","Reading full","Article - new words","Article ELS (pages 316-319)","Task 2","Speaking","Cambridge 19 - test 2","Longer Article","Grammar revision lesson 2"],
+    "LESSON 3":["Listening full","Reading full","Article - new words","Article ELS (pages 320-323)","Task 1","Speaking","Cambridge 19 - test 3","Longer Article","Grammar revision lesson 3"],
+    "LESSON 4":["Listening full","Reading full","Article - new words","Article ELS (pages 324-327)","Task 2","Speaking","Cambridge 19 - test 4","Longer Article","Grammar revision lesson 4"],
+    "LESSON 5":["Listening full","Reading full","Article - new words","Article ELS (pages 328-331)","Task 1","Speaking","Cambridge 20 - test 1","Longer Article","Grammar revision lesson 5"],
+    "LESSON 6":["Listening full","Reading full","Article - new words","Article ELS (pages 332-335)","Task 2","Speaking","Cambridge 20 - test 2","Longer Article","Grammar revision lesson 6"],
+    "LESSON 7":["Listening full","Reading full","Article - new words","Article ELS (pages 336-339)","Task 1","Speaking","Cambridge 20 - test 3","Longer Article","Grammar revision lesson 7"],
+    "LESSON 8":["Listening full","Reading full","Article - new words","Article ELS (pages 340-343)","Task 2","Speaking","Cambridge 20 - test 4","Longer Article","Grammar revision lesson 8"],
+    "LESSON 9":["Listening full","Reading full","Article - new words","Article ELS (pages 344-347)","Task 1","Speaking","Volume 7 - Test 1","Longer Article"],
+    "LESSON 10":["Listening full","Reading full","Article - new words","Article ELS (pages 348-351)","Task 2","Speaking","Volume 7 - Test 2","Longer Article"]
+  }
 };
 
 /* ================= APP ================= */
 const app=document.getElementById("app");
+
 function openInstruction(){
+  setNav("instructions", {});
   app.innerHTML = `
     <button class="back" onclick="home()">Back</button>
-
     <h2>📘 Student-Friendly Instructions: How to Use the Website</h2>
 
-    <div class="card">
-      <b>Step 1</b><br>
+    <div class="card"><b>Step 1</b><br>
       When you open the website, click <b>“Enter as Student”</b>.
     </div>
 
-    <div class="card">
-      <b>Step 2</b><br>
-      Find your <b>group</b> and click on it.  
+    <div class="card"><b>Step 2</b><br>
+      Find your <b>group</b> and click on it.
       After that, find your <b>full name</b> in the list and click on it.
     </div>
 
-    <div class="card">
-      <b>Step 3</b><br>
-      You will see <b>5 stages</b>.  
+    <div class="card"><b>Step 3</b><br>
+      You will see <b>5 stages</b>.
       Click the stage you are currently studying, then choose the <b>lesson</b> and the <b>homework</b> you need to submit.
     </div>
 
-    <div class="card">
-      <b>Step 4</b><br>
+    <div class="card"><b>Step 4</b><br>
       Attach <b>at least one photo</b> of your homework and submit it.<br><br>
       ⚠️ <b>Without a photo, the homework will NOT be saved and will NOT be marked as “Submitted”.</b>
     </div>
 
-    <div class="card">
-      <b>📌 Important Note</b><br>
+    <div class="card"><b>📌 Important Note</b><br>
       For <b>Speaking homework</b>:
       <ul>
         <li>Send your speaking to the group (as usual)</li>
@@ -694,8 +302,7 @@ function openInstruction(){
       </ul>
     </div>
 
-    <div class="card">
-      <b>✅ Final Reminder</b><br>
+    <div class="card"><b>✅ Final Reminder</b><br>
       After submitting, always check that the homework status shows <b>“Submitted”</b>.
     </div>
   `;
@@ -703,54 +310,60 @@ function openInstruction(){
 
 /* ================= HOME ================= */
 function home(){
- app.innerHTML=`
-  <div class="card"><button class="primary" onclick="enterStudent()">Enter as Student</button></div>
-  <div class="card"><button class="primary" onclick="login()">Teacher / Assistant</button></div>
- `;
+  setNav("home", {});
+  app.innerHTML=`
+    <div class="card"><button class="primary" onclick="enterStudent()">Enter as Student</button></div>
+    <div class="card"><button class="primary" onclick="login()">Teacher / Assistant</button></div>
+  `;
 }
 
 /* ================= STUDENT FLOW ================= */
 function enterStudent(){
- let h=`<button class="back" onclick="home()">Back</button><h3>Select Group</h3>`;
- Object.keys(GROUPS).forEach(g=>{
-  h+=`<div class="card"><button class="primary" onclick="selectStudent('${g}')">${g}</button></div>`;
- });
- app.innerHTML=h;
+  setNav("enterStudent", {});
+  let h=`<button class="back" onclick="home()">Back</button><h3>Select Group</h3>`;
+  Object.keys(GROUPS).forEach(g=>{
+    h+=`<div class="card"><button class="primary" onclick="selectStudent('${g}')">${g}</button></div>`;
+  });
+  app.innerHTML=h;
 }
 
 function selectStudent(group){
- let h=`<button class="back" onclick="enterStudent()">Back</button><h3>${group}</h3>`;
- GROUPS[group].forEach(s=>{
-  h+=`<div class="card"><button class="primary" onclick="showStages('${group}','${s}')">${s}</button></div>`;
- });
- app.innerHTML=h;
+  setNav("selectStudent", { group });
+  let h=`<button class="back" onclick="enterStudent()">Back</button><h3>${group}</h3>`;
+  GROUPS[group].forEach(s=>{
+    h+=`<div class="card"><button class="primary" onclick="showStages('${group}','${s}')">${s}</button></div>`;
+  });
+  app.innerHTML=h;
 }
 
 function showStages(group,student){
- let h=`<button class="back" onclick="selectStudent('${group}')">Back</button><h3>${student}</h3>`;
- Object.keys(STAGES).forEach(stage=>{
-  h+=`<div class="card stage"><button class="primary" onclick="showLessons('${group}','${student}','${stage}')">${stage}</button></div>`;
- });
- app.innerHTML=h;
+  setNav("showStages", { group, student });
+  let h=`<button class="back" onclick="selectStudent('${group}')">Back</button><h3>${student}</h3>`;
+  Object.keys(STAGES).forEach(stage=>{
+    h+=`<div class="card stage"><button class="primary" onclick="showLessons('${group}','${student}','${stage}')">${stage}</button></div>`;
+  });
+  app.innerHTML=h;
 }
 
 function showLessons(group,student,stage){
- let h=`<button class="back" onclick="showStages('${group}','${student}')">Back</button><h3>${stage}</h3>`;
- Object.keys(STAGES[stage]).forEach(lesson=>{
-  h+=`<div class="card lesson"><button class="secondary" onclick="showHomework('${group}','${student}','${stage}','${lesson}')">${lesson}</button></div>`;
- });
- app.innerHTML=h;
+  setNav("showLessons", { group, student, stage });
+  let h=`<button class="back" onclick="showStages('${group}','${student}')">Back</button><h3>${stage}</h3>`;
+  Object.keys(STAGES[stage]).forEach(lesson=>{
+    h+=`<div class="card lesson"><button class="secondary" onclick="showHomework('${group}','${student}','${stage}','${lesson}')">${lesson}</button></div>`;
+  });
+  app.innerHTML=h;
 }
 
 async function showHomework(group, student, stage, lesson){
+  setNav("showHomework", { group, student, stage, lesson });
+
   const lessonSnap = await db
     .ref(`submissions/${group}/${student}/${stage}/${lesson}`)
     .once("value");
   const lessonData = lessonSnap.val() || {};
 
   let h = `
-    <button class="back"
-      onclick="showLessons('${group}','${student}','${stage}')">Back</button>
+    <button class="back" onclick="showLessons('${group}','${student}','${stage}')">Back</button>
     <h3>${stage} / ${lesson}</h3>
   `;
 
@@ -765,16 +378,26 @@ async function showHomework(group, student, stage, lesson){
           ${submitted ? 'Submitted' : 'Not submitted'}
         </span><br>
         ${
-          submitted
-            ? d.files.map(url => `<img src="${url}" />`).join("")
-            : ''
+          submitted ? d.files.map(url => `<img src="${url}" />`).join("") : ''
         }
         <br>
+
         <label class="primary">
           Submit photo (max 4)
           <input type="file" accept="image/*" multiple
             onchange="submitHW(this,'${group}','${student}','${stage}','${lesson}','${hw}')">
         </label>
+
+        ${
+          submitted ? `
+            <label class="danger" style="display:inline-block;margin-left:8px;">
+              Replace photos
+              <input type="file" accept="image/*" multiple
+                onchange="replaceHW(this,'${group}','${student}','${stage}','${lesson}','${hw}')">
+            </label>
+          ` : ''
+        }
+
       </div>
     `;
   }
@@ -808,24 +431,36 @@ async function compressImage(file, maxW=1280, quality=0.75){
   );
 
   if (!blob) return file;
-
   return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type:"image/jpeg" });
 }
 
+/* ================= ✅ ADDED: helper delete old storage files by URL (best-effort) ================= */
+async function deleteFilesByUrls(urls){
+  if(!urls || !Array.isArray(urls) || urls.length === 0) return;
+  for(const url of urls){
+    try{
+      const ref = storage.refFromURL(url);
+      await ref.delete();
+    }catch(e){
+      // игнорируем: файл мог быть уже удалён/нет прав/и т.д.
+    }
+  }
+}
+
+/* ================= UPLOAD (student) ================= */
 async function submitHW(input, group, student, stage, lesson, hw) {
+  const files = Array.from(input.files || []);
 
- const files = Array.from(input.files);
+  if (files.length === 0) {
+    alert("At least one photo is required.");
+    return;
+  }
 
-if (files.length === 0) {
-  alert("At least one photo is required.");
-  return;
-}
-
-if (files.length > 4) {
-  alert("❌ You can upload maximum 4 photos.\nPlease select up to 4 images.");
-  input.value = ""; // очищаем выбор
-  return;
-}
+  if (files.length > 4) {
+    alert("❌ You can upload maximum 4 photos.\nPlease select up to 4 images.");
+    input.value = "";
+    return;
+  }
 
   let uploadedUrls = [];
 
@@ -842,6 +477,7 @@ if (files.length > 4) {
       uploadedUrls.push(url);
     } catch (e) {
       alert("Upload failed: " + (e.message || e));
+      input.value = "";
       return;
     }
   }
@@ -851,17 +487,79 @@ if (files.length > 4) {
     time: Date.now()
   });
 
+  // ✅ важно: очистить input, чтобы WebView не “помнил” старые файлы
+  input.value = "";
+
+  // ✅ ADDED: остаёмся на том же уроке (не уходим в home)
+  await showHomework(group, student, stage, lesson);
+
   alert("Submitted successfully ✔");
+}
+
+/* ================= ✅ ADDED: REPLACE PHOTOS ================= */
+async function replaceHW(input, group, student, stage, lesson, hw) {
+  const files = Array.from(input.files || []);
+
+  if (files.length === 0) {
+    alert("At least one photo is required.");
+    return;
+  }
+
+  if (files.length > 4) {
+    alert("❌ You can upload maximum 4 photos.\nPlease select up to 4 images.");
+    input.value = "";
+    return;
+  }
+
+  // 1) берём старые урлы из DB
+  const snap = await db.ref(`submissions/${group}/${student}/${stage}/${lesson}/${hw}`).once("value");
+  const old = snap.val();
+  const oldUrls = old && Array.isArray(old.files) ? old.files : [];
+
+  // 2) удаляем старые файлы из Storage (best-effort)
+  await deleteFilesByUrls(oldUrls);
+
+  // 3) грузим новые
+  let uploadedUrls = [];
+
+  for (const file of files) {
+    const filePath =
+      `submissions/${safe(group)}/${safe(student)}/${safe(stage)}/${safe(lesson)}/${safe(hw)}/${Date.now()}_${safe(file.name)}`;
+
+    const ref = storage.ref(filePath);
+    const small = await compressImage(file);
+
+    try {
+      await ref.put(small);
+      const url = await ref.getDownloadURL();
+      uploadedUrls.push(url);
+    } catch (e) {
+      alert("Upload failed: " + (e.message || e));
+      input.value = "";
+      return;
+    }
+  }
+
+  await db.ref(`submissions/${group}/${student}/${stage}/${lesson}/${hw}`).set({
+    files: uploadedUrls,
+    time: Date.now()
+  });
+
+  input.value = "";
+  await showHomework(group, student, stage, lesson);
+  alert("Replaced successfully ✔");
 }
 
 /* ================= ADMIN ================= */
 function login(){
- const u=prompt("Login");const p=prompt("Password");
- if((u==="Teacher1"&&p==="Admin1")||(u==="Assistant1"&&p==="Admin2")) admin();
- else alert("Wrong credentials");
+  const u=prompt("Login");
+  const p=prompt("Password");
+  if((u==="Teacher1"&&p==="Admin1")||(u==="Assistant1"&&p==="Admin2")) admin();
+  else alert("Wrong credentials");
 }
 
 function admin(){
+  setNav("admin", {});
   let h = `<button class="back" onclick="home()">Back</button><h3>Admin Panel</h3>`;
 
   Object.keys(GROUPS).forEach(g=>{
@@ -878,6 +576,7 @@ function admin(){
 }
 
 function adminGroup(group){
+  setNav("adminGroup", { group });
   let h = `
     <button class="back" onclick="admin()">Back</button>
     <h3>${group}</h3>
@@ -887,8 +586,7 @@ function adminGroup(group){
   Object.keys(STAGES).forEach(stage=>{
     h += `
       <div class="card">
-        <button class="primary"
-          onclick="adminStageSelect('${group}','${stage}')">
+        <button class="primary" onclick="adminStageSelect('${group}','${stage}')">
           ${stage}
         </button>
       </div>
@@ -898,7 +596,8 @@ function adminGroup(group){
   app.innerHTML = h;
 }
 
-  function adminStageSelect(group, stage){
+function adminStageSelect(group, stage){
+  setNav("adminStageSelect", { group, stage });
   let h = `
     <button class="back" onclick="adminGroup('${group}')">Back</button>
     <h3>${group}</h3>
@@ -909,8 +608,7 @@ function adminGroup(group){
   Object.keys(STAGES[stage]).forEach(lesson=>{
     h += `
       <div class="card">
-        <button class="secondary"
-          onclick="adminLessonView('${group}','${stage}','${lesson}')">
+        <button class="secondary" onclick="adminLessonView('${group}','${stage}','${lesson}')">
           ${lesson}
         </button>
       </div>
@@ -921,15 +619,15 @@ function adminGroup(group){
 }
 
 async function adminLessonView(group, stage, lesson){
+  setNav("adminLessonView", { group, stage, lesson });
+
   let h = `
-    <button class="back"
-      onclick="adminStageSelect('${group}','${stage}')">Back</button>
+    <button class="back" onclick="adminStageSelect('${group}','${stage}')">Back</button>
 
     <h3>${group}</h3>
     <h4>${stage} / ${lesson}</h4>
 
-    <button class="secondary"
-      onclick="exportLessonCSV('${group}','${stage}','${lesson}')">
+    <button class="secondary" onclick="exportLessonCSV('${group}','${stage}','${lesson}')">
       📤 Export lesson to CSV
     </button>
   `;
@@ -968,10 +666,10 @@ async function adminLessonView(group, stage, lesson){
 
   app.innerHTML = h;
 }
-  
+
 function clearGroup(group){
- if(!confirm("Clear ALL files for this group?"))return;
- db.ref(`submissions/${group}`).remove().then(()=>alert("Cleared"));
+  if(!confirm("Clear ALL files for this group?"))return;
+  db.ref(`submissions/${group}`).remove().then(()=>alert("Cleared"));
 }
 
 async function exportLessonCSV(group, stage, lesson){
@@ -1012,10 +710,12 @@ async function exportLessonCSV(group, stage, lesson){
   URL.revokeObjectURL(url);
 }
 
-home();
+/* ✅ CHANGED: вместо home() — восстановление экрана, иначе home */
+restoreNavOrHome();
 </script>
 </body>
 </html>
+
 
 
 
